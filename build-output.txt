@@ -1,0 +1,129 @@
+﻿
+> ai-surveyor@0.1.0 build
+> next build
+
+  Γû▓ Next.js 14.2.35
+  - Environments: .env
+
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully
+   Linting and checking validity of types ...
+
+./src/app/admin/page.tsx
+89:6  Warning: React Hook useEffect has missing dependencies: 'loadDocs' and 'loading'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/28) ...
+node.exe : Copilot history error: B [Error]: Dynamic server usage: Route 
+/api/copilot/history couldn't be rendered statically because it used 
+`request.url`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Copilot history...ic-server-error 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    at V (D:\web projects\Ai Surveyor\ai-surveyor\node_modules\next\dist\compil
+ed\next-server\app-route.runtime.prod.js:6:21778)
+    at Object.get (D:\web projects\Ai Surveyor\ai-surveyor\node_modules\next\di
+st\compiled\next-server\app-route.runtime.prod.js:6:29465)
+    at p (D:\web projects\Ai 
+Surveyor\ai-surveyor\.next\server\app\api\copilot\history\route.js:1:543)
+    at D:\web projects\Ai Surveyor\ai-surveyor\node_modules\next\dist\compiled\
+next-server\app-route.runtime.prod.js:6:38417
+    at D:\web projects\Ai 
+Surveyor\ai-surveyor\node_modules\next\dist\server\lib\trace\tracer.js:140:36
+    at NoopContextManager.with (D:\web projects\Ai Surveyor\ai-surveyor\node_mo
+dules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (D:\web projects\Ai Surveyor\ai-surveyor\node_modules\ne
+xt\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (D:\web projects\Ai Surveyor\ai-surveyor\node
+_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (D:\web projects\Ai Surveyor\ai-surveyor\nod
+e_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at D:\web projects\Ai 
+Surveyor\ai-surveyor\node_modules\next\dist\server\lib\trace\tracer.js:122:103 
+{
+  description: "Route /api/copilot/history couldn't be rendered statically 
+because it used `request.url`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+   Generating static pages (7/28) 
+Search error: B [Error]: Dynamic server usage: Route /api/search couldn't be 
+rendered statically because it used `request.url`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error
+    at V (D:\web projects\Ai Surveyor\ai-surveyor\node_modules\next\dist\compil
+ed\next-server\app-route.runtime.prod.js:6:21778)
+    at Object.get (D:\web projects\Ai Surveyor\ai-surveyor\node_modules\next\di
+st\compiled\next-server\app-route.runtime.prod.js:6:29465)
+    at u (D:\web projects\Ai 
+Surveyor\ai-surveyor\.next\server\app\api\search\route.js:1:543)
+    at D:\web projects\Ai Surveyor\ai-surveyor\node_modules\next\dist\compiled\
+next-server\app-route.runtime.prod.js:6:38417
+    at D:\web projects\Ai 
+Surveyor\ai-surveyor\node_modules\next\dist\server\lib\trace\tracer.js:140:36
+    at NoopContextManager.with (D:\web projects\Ai Surveyor\ai-surveyor\node_mo
+dules\next\dist\compiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (D:\web projects\Ai Surveyor\ai-surveyor\node_modules\ne
+xt\dist\compiled\@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (D:\web projects\Ai Surveyor\ai-surveyor\node
+_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18093)
+    at ProxyTracer.startActiveSpan (D:\web projects\Ai Surveyor\ai-surveyor\nod
+e_modules\next\dist\compiled\@opentelemetry\api\index.js:1:18854)
+    at D:\web projects\Ai 
+Surveyor\ai-surveyor\node_modules\next\dist\server\lib\trace\tracer.js:122:103 
+{
+  description: "Route /api/search couldn't be rendered statically because it 
+used `request.url`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+   Generating static pages (14/28) 
+   Generating static pages (21/28) 
+ Γ£ô Generating static pages (28/28)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+Γöî Γùï /                                    8.41 kB         118 kB
+Γö£ Γùï /_not-found                          873 B          88.1 kB
+Γö£ Γùï /admin                               7.08 kB         137 kB
+Γö£ Γùï /api/activity-log                    0 B                0 B
+Γö£ Γùï /api/admin/checklist-templates       0 B                0 B
+Γö£ ╞Æ /api/admin/master-documents          0 B                0 B
+Γö£ ╞Æ /api/admin/master-documents/[id]     0 B                0 B
+Γö£ ╞Æ /api/assessments/[id]/results        0 B                0 B
+Γö£ ╞Æ /api/assessments/run                 0 B                0 B
+Γö£ ╞Æ /api/compliance-scores               0 B                0 B
+Γö£ ╞Æ /api/copilot/chat                    0 B                0 B
+Γö£ ╞Æ /api/copilot/feedback                0 B                0 B
+Γö£ ╞Æ /api/copilot/history                 0 B                0 B
+Γö£ ╞Æ /api/corrective-actions              0 B                0 B
+Γö£ Γùï /api/dashboard                       0 B                0 B
+Γö£ ╞Æ /api/evidence                        0 B                0 B
+Γö£ ╞Æ /api/evidence/[id]                   0 B                0 B
+Γö£ Γùï /api/facilities                      0 B                0 B
+Γö£ ╞Æ /api/notifications                   0 B                0 B
+Γö£ ╞Æ /api/projects                        0 B                0 B
+Γö£ ╞Æ /api/projects/[id]                   0 B                0 B
+Γö£ ╞Æ /api/search                          0 B                0 B
+Γö£ Γùï /api/standards                       0 B                0 B
+Γö£ Γùï /assessment                          16.8 kB         145 kB
+Γö£ Γùï /copilot                             8.37 kB         109 kB
+Γö£ Γùï /evidence                            3.36 kB         134 kB
+Γö£ Γùï /gap-analysis                        6.66 kB         135 kB
+Γö£ Γùï /reports                             6.78 kB         104 kB
+Γöö Γùï /survey                              7.49 kB         147 kB
++ First Load JS shared by all            87.3 kB
+  Γö£ chunks/117-c5f79dd8daee37b2.js       31.7 kB
+  Γö£ chunks/fd9d1056-9e191f0896c1d560.js  53.6 kB
+  Γöö other shared chunks (total)          1.9 kB
+
+
+Γùï  (Static)   prerendered as static content
+╞Æ  (Dynamic)  server-rendered on demand
+

@@ -1,0 +1,361 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USERS & FACILITIES
+// ============================================
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  role      String   @default("quality_officer") // quality_director, quality_officer, department_head, admin
+  avatar    String?
+  createdAt DateTime @default(now())
+
+  projectsCreated  SurveyProject[]  @relation("ProjectCreator")
+  evidenceUploaded Evidence[]       @relation("EvidenceUploader")
+  masterDocsUploaded MasterDocument[] @relation("MasterDocUploader")
+  activityLogs     ActivityLog[]
+  notifications    Notification[]
+  copilotMessages  CopilotMessage[]
+}
+
+model Facility {
+  id       String @id @default(uuid())
+  name     String
+  location String?
+  type     String? // hospital, clinic, etc.
+
+  projects SurveyProject[]
+}
+
+// ============================================
+// STANDARDS & MEASURABLE ELEMENTS
+// ============================================
+model Standard {
+  id           String @id @default(uuid())
+  chapterId    String
+  chapterName  String
+  standardName String
+  description  String
+  version      String
+  criticality  String @default("non-critical")
+
+  subStandards SubStandard[]
+  masterDocs   MasterDocument[]
+
+  @@unique([chapterId, version])
+}
+
+model SubStandard {
+  id         String @id @default(uuid())
+  standardId String
+  name       String
+
+  standard           Standard            @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  measurableElements MeasurableElement[]
+}
+
+model MeasurableElement {
+  id                  String @id @default(uuid())
+  subStandardId       String
+  code                String @unique
+  text                String
+  criticality         String @default("non-critical")
+  requiredEvidenceType String @default("[]") // JSON array
+  keywords            String @default("[]") // JSON array
+  departments         String @default("[]") // JSON array
+  scoringRule         String @default("")
+
+  subStandard      SubStandard       @relation(fields: [subStandardId], references: [id], onDelete: Cascade)
+  complianceScores ComplianceScore[]
+  correctiveActions CorrectiveAction[]
+  checklistItems   ChecklistItem[]
+  masterDocMappings MasterDocMapping[]
+}
+
+// ============================================
+// SURVEY PROJECTS
+// ============================================
+model SurveyProject {
+  id               String   @id @default(uuid())
+  name             String
+  facilityId       String
+  standardVersion  String
+  scope            String   @default("full")
+  selectedChapters String   @default("[]") // JSON array
+  departments      String   @default("[]") // JSON array
+  status           String   @default("draft")
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deadline         String
+  teamMembers      String   @default("[]") // JSON array
+  overallScore     Float    @default(0)
+
+  facility      Facility       @relation(fields: [facilityId], references: [id])
+  createdBy     User           @relation("ProjectCreator", fields: [createdById], references: [id])
+  chapterScores ChapterScore[]
+  assessments   Assessment[]
+  evidence      ProjectEvidence[]
+  correctiveActions CorrectiveAction[]
+}
+
+model ChapterScore {
+  id            String @id @default(uuid())
+  projectId     String
+  chapterId     String
+  chapterName   String
+  score         Float  @default(0)
+  totalMes      Int    @default(0)
+  compliant     Int    @default(0)
+  partial       Int    @default(0)
+  nonCompliant  Int    @default(0)
+  notApplicable Int    @default(0)
+
+  project SurveyProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, chapterId])
+}
+
+// ============================================
+// EVIDENCE & FILE UPLOADS
+// ============================================
+model Evidence {
+  id           String   @id @default(uuid())
+  documentName String
+  type         String   // policy, procedure, record, observation, etc.
+  department   String
+  fileType     String
+  fileSize     Int
+  filePath     String   // actual file storage path
+  uploadedById String
+  uploadDate   DateTime @default(now())
+  version      String   @default("1.0")
+  owner        String   @default("")
+  summary      String   @default("")
+  status       String   @default("pending") // pending, classified, mapped, reviewed
+
+  uploadedBy      User              @relation("EvidenceUploader", fields: [uploadedById], references: [id])
+  projectLinks    ProjectEvidence[]
+  evidenceMatches EvidenceMatch[]
+}
+
+model ProjectEvidence {
+  id         String @id @default(uuid())
+  projectId  String
+  evidenceId String
+
+  project  SurveyProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  evidence Evidence      @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, evidenceId])
+}
+
+// ============================================
+// AI ASSESSMENTS & COMPLIANCE
+// ============================================
+model Assessment {
+  id              String   @id @default(uuid())
+  projectId       String
+  standardVersion String
+  chapterFilter   String?  // JSON array or null for all
+  status          String   @default("pending") // pending, processing, completed, failed
+  progress        Int      @default(0)
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  totalMes        Int      @default(0)
+  processedMes    Int      @default(0)
+  aiModel         String   @default("gpt-4o")
+  errorMessage    String?
+
+  project          SurveyProject    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  complianceScores ComplianceScore[]
+}
+
+model ComplianceScore {
+  id              String  @id @default(uuid())
+  assessmentId    String
+  meId            String
+  meCode          String
+  meText          String
+  aiScore         String  // compliant, partial, non-compliant, not-applicable
+  aiConfidence    Float   @default(0)
+  matchScore      Float   @default(0)
+  reviewerScore   String? // reviewer override
+  reviewerComment String?
+  justification   String  @default("")
+  evidenceMissing String  @default("[]") // JSON array
+  gaps            String  @default("[]") // JSON array
+  recommendations String  @default("[]") // JSON array
+
+  assessment     Assessment      @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  me             MeasurableElement @relation(fields: [meId], references: [id])
+  evidenceMatches EvidenceMatch[]
+}
+
+model EvidenceMatch {
+  id              String @id @default(uuid())
+  complianceScoreId String
+  evidenceId      String
+  documentName    String
+  relevanceScore  Float  @default(0)
+  matchedSections String @default("[]") // JSON array
+
+  complianceScore ComplianceScore @relation(fields: [complianceScoreId], references: [id], onDelete: Cascade)
+  evidence        Evidence        @relation(fields: [evidenceId], references: [id])
+}
+
+// ============================================
+// CORRECTIVE ACTIONS
+// ============================================
+model CorrectiveAction {
+  id                 String   @id @default(uuid())
+  projectId          String
+  meId               String
+  meCode             String
+  gapDescription     String
+  actionType         String   // policy_update, training, evidence_creation, process_redesign, rca
+  recommendedAction  String
+  assignedDepartment String
+  assignedTo         String
+  dueDate            String
+  priority           String   @default("medium")
+  status             String   @default("open")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project SurveyProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  me      MeasurableElement @relation(fields: [meId], references: [id])
+}
+
+// ============================================
+// MASTER DOCUMENTS (Admin)
+// ============================================
+model MasterDocument {
+  id           String   @id @default(uuid())
+  name         String
+  standardId   String
+  chapterId    String
+  description  String   @default("")
+  fileType     String
+  filePath     String
+  uploadedById String
+  uploadDate   DateTime @default(now())
+  version      String   @default("1.0")
+  category     String   @default("policy")
+  status       String   @default("active")
+
+  standard   Standard            @relation(fields: [standardId], references: [id])
+  uploadedBy User                @relation("MasterDocUploader", fields: [uploadedById], references: [id])
+  mappings   MasterDocMapping[]
+}
+
+model MasterDocMapping {
+  id               String @id @default(uuid())
+  masterDocumentId String
+  meId             String
+
+  masterDocument MasterDocument    @relation(fields: [masterDocumentId], references: [id], onDelete: Cascade)
+  me             MeasurableElement @relation(fields: [meId], references: [id])
+
+  @@unique([masterDocumentId, meId])
+}
+
+// ============================================
+// CHECKLIST TEMPLATES
+// ============================================
+model ChecklistTemplate {
+  id         String @id @default(uuid())
+  standardId String
+  name       String @default("Default")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  items ChecklistItem[]
+}
+
+model ChecklistItem {
+  id             String  @id @default(uuid())
+  templateId     String
+  meCode         String
+  meId           String?
+  category       String  // checklist, data_collection, document_evidence
+  label          String
+  description    String  @default("")
+  type           String  @default("boolean") // boolean, text, number, date, file, select
+  required       Boolean @default(true)
+  options        String  @default("[]") // JSON array for select type
+  value          String? // stored as string, parsed by type
+  evidenceFiles  String  @default("[]") // JSON array
+  sortOrder      Int     @default(0)
+
+  template ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  me       MeasurableElement? @relation(fields: [meId], references: [id])
+}
+
+// ============================================
+// CO-PILOT
+// ============================================
+model CopilotConversation {
+  id        String   @id @default(uuid())
+  projectId String?
+  title     String   @default("New Conversation")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages CopilotMessage[]
+}
+
+model CopilotMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  userId         String?
+  role           String   // user, assistant
+  content        String
+  sources        String   @default("[]") // JSON array of CopilotSource
+  feedback       String?  // positive, negative
+  createdAt      DateTime @default(now())
+
+  conversation CopilotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User?               @relation(fields: [userId], references: [id])
+}
+
+// ============================================
+// ACTIVITY LOG
+// ============================================
+model ActivityLog {
+  id        String   @id @default(uuid())
+  action    String
+  userId    String?
+  details   String   @default("")
+  type      String   @default("system") // upload, scan, review, report, override, system
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("info") // info, warning, success, error
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}

@@ -1,0 +1,327 @@
+{
+  "version": "CBAHI-Sibahi 2026 v1.0",
+  "standards": [
+    {
+      "id": "STD-IC",
+      "chapter_id": "CH-03",
+      "chapter_name": "Infection Prevention and Control (IPC)",
+      "standard_name": "Infection Control Program",
+      "description": "The organization has an effective infection prevention and control program that is coordinated across all departments.",
+      "criticality": "critical",
+      "sub_standards": [
+        {
+          "id": "SS-IC-01",
+          "name": "Hand Hygiene Compliance",
+          "measurable_elements": [
+            {
+              "id": "ME-IC-01-01",
+              "code": "IPC.1.1",
+              "text": "The organization has an approved hand hygiene policy that is consistent with WHO guidelines and is reviewed annually.",
+              "criticality": "critical",
+              "required_evidence_type": ["policy", "procedure"],
+              "keywords": ["hand hygiene", "WHO", "five moments", "alcohol-based", "hand washing"],
+              "departments": ["Infection Control", "Nursing", "All Clinical"],
+              "scoring_rule": "Policy document must reference WHO five moments, include alcohol-based hand rub protocol, and show annual review date."
+            },
+            {
+              "id": "ME-IC-01-02",
+              "code": "IPC.1.2",
+              "text": "Hand hygiene compliance rates are monitored monthly and reported to the Infection Control Committee.",
+              "criticality": "critical",
+              "required_evidence_type": ["record", "audit"],
+              "keywords": ["compliance rate", "monitoring", "monthly audit", "hand hygiene audit"],
+              "departments": ["Infection Control", "Quality"],
+              "scoring_rule": "Must show documented audit results for at least 6 months with >85% compliance target."
+            },
+            {
+              "id": "ME-IC-01-03",
+              "code": "IPC.1.3",
+              "text": "Hand hygiene training is provided to all new staff during orientation and annually thereafter.",
+              "criticality": "non-critical",
+              "required_evidence_type": ["training", "record"],
+              "keywords": ["training", "orientation", "annual training", "competency"],
+              "departments": ["Infection Control", "HR", "Education"],
+              "scoring_rule": "Training records must show >90% completion rate for new hires within 30 days."
+            }
+          ]
+        },
+        {
+          "id": "SS-IC-02",
+          "name": "Sterilization and Disinfection",
+          "measurable_elements": [
+            {
+              "id": "ME-IC-02-01",
+              "code": "IPC.2.1",
+              "text": "The organization has policies and procedures for cleaning, disinfection, and sterilization of medical devices and equipment.",
+              "criticality": "critical",
+              "required_evidence_type": ["policy", "procedure"],
+              "keywords": ["sterilization", "disinfection", "Spaulding classification", "autoclave", "CSSD"],
+              "departments": ["CSSD", "Infection Control", "Surgery"],
+              "scoring_rule": "Policy must include Spaulding classification, approved disinfectant list, and sterilization validation protocols."
+            },
+            {
+              "id": "ME-IC-02-02",
+              "code": "IPC.2.2",
+              "text": "Biological indicators are used to monitor sterilization processes and results are documented.",
+              "criticality": "critical",
+              "required_evidence_type": ["record", "audit"],
+              "keywords": ["biological indicator", "sterilization monitoring", "spore test", "autoclave log"],
+              "departments": ["CSSD"],
+              "scoring_rule": "Biological indicator testing logs must be available for each sterilizer, with results documented within 24 hours."
+            }
+          ]
+        },
+        {
+          "id": "SS-IC-03",
+          "name": "Healthcare-Associated Infections Surveillance",
+          "measurable_elements": [
+            {
+              "id": "ME-IC-03-01",
+              "code": "IPC.3.1",
+              "text": "The organization conducts surveillance of healthcare-associated infections (HAIs) using standardized definitions.",
+              "criticality": "critical",
+              "required_evidence_type": ["procedure", "record"],
+              "keywords": ["HAI", "surveillance", "NHSN", "CLABSI", "CAUTI", "SSI", "VAP"],
+              "departments": ["Infection Control", "ICU", "Surgery"],
+              "scoring_rule": "Surveillance program must cover at minimum: CLABSI, CAUTI, SSI, and VAP with monthly data collection."
+            },
+            {
+              "id": "ME-IC-03-02",
+              "code": "IPC.3.2",
+              "text": "Infection rates are benchmarked against national and international standards.",
+              "criticality": "non-critical",
+              "required_evidence_type": ["record", "audit"],
+              "keywords": ["benchmark", "infection rate", "NHSN percentile", "comparison"],
+              "departments": ["Infection Control", "Quality"],
+              "scoring_rule": "Benchmarking reports must show comparison with NHSN or equivalent data, minimum quarterly."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "STD-PS",
+      "chapter_id": "CH-01",
+      "chapter_name": "Patient Safety (PS)",
+      "standard_name": "Patient Safety Program",
+      "description": "The organization implements a comprehensive patient safety program to prevent harm and improve outcomes.",
+      "criticality": "critical",
+      "sub_standards": [
+        {
+          "id": "SS-PS-01",
+          "name": "Patient Identification",
+          "measurable_elements": [
+            {
+              "id": "ME-PS-01-01",
+              "code": "PS.1.1",
+              "text": "The organization has a patient identification policy that requires at least two patient identifiers before any intervention.",
+              "criticality": "critical",
+              "required_evidence_type": ["policy", "procedure"],
+              "keywords": ["patient identification", "two identifiers", "wristband", "MRN", "name"],
+              "departments": ["All Clinical", "Nursing", "Laboratory", "Pharmacy"],
+              "scoring_rule": "Policy must specify two identifiers, situations requiring verification, and corrective measures for misidentification."
+            },
+            {
+              "id": "ME-PS-01-02",
+              "code": "PS.1.2",
+              "text": "Compliance with patient identification protocols is monitored through regular audits.",
+              "criticality": "non-critical",
+              "required_evidence_type": ["audit", "record"],
+              "keywords": ["identification audit", "compliance monitoring", "wristband audit"],
+              "departments": ["Quality", "Nursing"],
+              "scoring_rule": "Audit results must show >95% compliance and be conducted at minimum quarterly."
+            }
+          ]
+        },
+        {
+          "id": "SS-PS-02",
+          "name": "Fire Safety",
+          "measurable_elements": [
+            {
+              "id": "ME-PS-02-01",
+              "code": "PS.2.1",
+              "text": "The organization has a comprehensive fire safety plan including evacuation procedures, fire drills, and fire equipment maintenance.",
+              "criticality": "critical",
+              "required_evidence_type": ["policy", "procedure", "record"],
+              "keywords": ["fire safety", "evacuation", "fire drill", "fire extinguisher", "RACE", "PASS"],
+              "departments": ["Safety", "Facility Management", "All"],
+              "scoring_rule": "Fire safety plan must include RACE/PASS protocols, evacuation routes, drill schedule (minimum biannual), and equipment inspection logs."
+            },
+            {
+              "id": "ME-PS-02-02",
+              "code": "PS.2.2",
+              "text": "Staff are trained in fire safety procedures including use of fire extinguishers and evacuation protocols.",
+              "criticality": "critical",
+              "required_evidence_type": ["training", "record"],
+              "keywords": ["fire training", "fire drill attendance", "extinguisher training", "evacuation drill"],
+              "departments": ["Safety", "HR", "Education"],
+              "scoring_rule": "Training records must show >90% staff participation in annual fire drills."
+            }
+          ]
+        },
+        {
+          "id": "SS-PS-03",
+          "name": "Medication Safety",
+          "measurable_elements": [
+            {
+              "id": "ME-PS-03-01",
+              "code": "PS.3.1",
+              "text": "The organization has a high-alert medications policy identifying medications that require additional safeguards.",
+              "criticality": "critical",
+              "required_evidence_type": ["policy", "procedure"],
+              "keywords": ["high-alert", "LASA", "look-alike", "sound-alike", "medication safety"],
+              "departments": ["Pharmacy", "Nursing", "Medical Staff"],
+              "scoring_rule": "Policy must include ISMP high-alert medication list, double-check procedures, and LASA medication management."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "STD-MM",
+      "chapter_id": "CH-05",
+      "chapter_name": "Medication Management (MM)",
+      "standard_name": "Medication Management System",
+      "description": "The organization has a standardized, safe medication management system across the continuum of care.",
+      "criticality": "critical",
+      "sub_standards": [
+        {
+          "id": "SS-MM-01",
+          "name": "Medication Procurement and Storage",
+          "measurable_elements": [
+            {
+              "id": "ME-MM-01-01",
+              "code": "MM.1.1",
+              "text": "The organization has a formulary management system with a Pharmacy and Therapeutics Committee overseeing medication selection.",
+              "criticality": "critical",
+              "required_evidence_type": ["policy", "record"],
+              "keywords": ["formulary", "P&T committee", "drug selection", "medication list"],
+              "departments": ["Pharmacy"],
+              "scoring_rule": "P&T committee must meet at minimum quarterly with documented meeting minutes and formulary review."
+            },
+            {
+              "id": "ME-MM-01-02",
+              "code": "MM.1.2",
+              "text": "Medications are stored properly according to manufacturer requirements including temperature monitoring.",
+              "criticality": "critical",
+              "required_evidence_type": ["procedure", "record", "observation"],
+              "keywords": ["medication storage", "temperature log", "cold chain", "controlled substances"],
+              "departments": ["Pharmacy", "Nursing"],
+              "scoring_rule": "Temperature logs must be maintained for all medication storage areas, with documented corrective actions for excursions."
+            }
+          ]
+        },
+        {
+          "id": "SS-MM-02",
+          "name": "Medication Administration",
+          "measurable_elements": [
+            {
+              "id": "ME-MM-02-01",
+              "code": "MM.2.1",
+              "text": "The organization follows the '10 Rights' of medication administration with documented verification process.",
+              "criticality": "critical",
+              "required_evidence_type": ["policy", "procedure", "observation"],
+              "keywords": ["10 rights", "medication administration", "right patient", "right drug", "right dose"],
+              "departments": ["Nursing", "Pharmacy"],
+              "scoring_rule": "Policy must enumerate all 10 rights, and audit results must show >95% compliance."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "STD-PC",
+      "chapter_id": "CH-02",
+      "chapter_name": "Patient Care (PC)",
+      "standard_name": "Patient Assessment and Care",
+      "description": "Patients receive competent assessments and individualized care plans based on their needs.",
+      "criticality": "critical",
+      "sub_standards": [
+        {
+          "id": "SS-PC-01",
+          "name": "Initial Assessment",
+          "measurable_elements": [
+            {
+              "id": "ME-PC-01-01",
+              "code": "PC.1.1",
+              "text": "All patients receive an initial medical and nursing assessment within defined timeframes based on acuity.",
+              "criticality": "critical",
+              "required_evidence_type": ["policy", "procedure", "record"],
+              "keywords": ["initial assessment", "medical assessment", "nursing assessment", "timeframe", "acuity"],
+              "departments": ["Medical Staff", "Nursing", "Emergency"],
+              "scoring_rule": "Assessment timeframes must be defined: Emergency <30 min, Inpatient <24 hrs, with documented compliance."
+            },
+            {
+              "id": "ME-PC-01-02",
+              "code": "PC.1.2",
+              "text": "Pain assessment is conducted for all patients using validated tools and re-assessed regularly.",
+              "criticality": "critical",
+              "required_evidence_type": ["policy", "procedure", "record"],
+              "keywords": ["pain assessment", "pain scale", "NRS", "VAS", "FLACC", "reassessment"],
+              "departments": ["Nursing", "Medical Staff"],
+              "scoring_rule": "Must use validated pain scales appropriate to patient population, with documented reassessment intervals."
+            }
+          ]
+        },
+        {
+          "id": "SS-PC-02",
+          "name": "Care Planning",
+          "measurable_elements": [
+            {
+              "id": "ME-PC-02-01",
+              "code": "PC.2.1",
+              "text": "Individualized care plans are developed collaboratively by the multidisciplinary team and documented in the patient record.",
+              "criticality": "non-critical",
+              "required_evidence_type": ["procedure", "record"],
+              "keywords": ["care plan", "multidisciplinary", "individualized", "treatment plan"],
+              "departments": ["All Clinical"],
+              "scoring_rule": "Care plans must be present in sampled records, signed by relevant disciplines, and updated within 72 hours."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "STD-LD",
+      "chapter_id": "CH-06",
+      "chapter_name": "Leadership (LD)",
+      "standard_name": "Leadership and Governance",
+      "description": "The leadership establishes governance structures and strategic plans that guide the organization.",
+      "criticality": "non-critical",
+      "sub_standards": [
+        {
+          "id": "SS-LD-01",
+          "name": "Strategic Planning",
+          "measurable_elements": [
+            {
+              "id": "ME-LD-01-01",
+              "code": "LD.1.1",
+              "text": "The organization has a documented strategic plan that addresses quality improvement, patient safety, and operational efficiency.",
+              "criticality": "non-critical",
+              "required_evidence_type": ["policy", "record"],
+              "keywords": ["strategic plan", "vision", "mission", "quality improvement", "KPIs"],
+              "departments": ["Executive", "Quality"],
+              "scoring_rule": "Strategic plan must be current (within 3 years), include measurable objectives, and be approved by governing body."
+            }
+          ]
+        },
+        {
+          "id": "SS-LD-02",
+          "name": "Quality Improvement Program",
+          "measurable_elements": [
+            {
+              "id": "ME-LD-02-01",
+              "code": "LD.2.1",
+              "text": "A hospital-wide quality improvement program is established with defined structure, process, and outcome measures.",
+              "criticality": "critical",
+              "required_evidence_type": ["policy", "procedure", "record"],
+              "keywords": ["quality improvement", "QI program", "PDCA", "outcome measures", "performance indicators"],
+              "departments": ["Quality", "Executive"],
+              "scoring_rule": "QI program must include organizational structure, defined KPIs, regular meetings, and improvement projects."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
