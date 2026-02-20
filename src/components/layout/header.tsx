@@ -1,36 +1,38 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Bell, Search, User, Building2, X, Loader2 } from "lucide-react";
+import { Bell, Search, User, X, Loader2, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { searchGlobal, fetchNotifications, markNotificationsRead, fetchFacilities } from "@/lib/api-client";
+import { searchGlobal, fetchNotifications, markNotificationsRead } from "@/lib/api-client";
+import { useAccreditation } from "@/contexts/accreditation-context";
 import Link from "next/link";
 
 export function Header() {
+  const {
+    accreditations,
+    facilities,
+    selectedAccreditation,
+    selectedFacility,
+    setSelectedAccreditation,
+    setSelectedFacility,
+  } = useAccreditation();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ type: string; id: string; title: string; subtitle: string }[]>([]);
   const [searching, setSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [notifications, setNotifications] = useState<{ id: string; title: string; message: string; type: string; read: boolean; created_at: string }[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [facilities, setFacilities] = useState<{ id: string; name: string }[]>([]);
-  const [selectedFacility, setSelectedFacility] = useState("King Fahad Medical City");
   const searchRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  // Load notifications and facilities on mount
   useEffect(() => {
     fetchNotifications().then(setNotifications).catch(console.error);
-    fetchFacilities().then(f => {
-      setFacilities(f);
-      if (f.length > 0) setSelectedFacility(f[0].name);
-    }).catch(console.error);
   }, []);
 
-  // Debounced search
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -52,7 +54,6 @@ export function Header() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) setShowSearch(false);
@@ -94,14 +95,25 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-16 items-center justify-between border-b bg-white px-6">
-      {/* Search */}
-      <div className="flex items-center gap-4" ref={searchRef}>
+    <header className="flex h-14 items-center justify-between border-b bg-white px-4">
+      {/* Left: Logo area + title */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1a5276]">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </svg>
+        </div>
+        <span className="text-sm font-semibold text-gray-700">Demo Main</span>
+      </div>
+
+      {/* Center: Search */}
+      <div className="flex items-center gap-3" ref={searchRef}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search standards, evidence, projects..."
-            className="w-[400px] pl-10"
+            placeholder="Search standards, evidence..."
+            className="w-[280px] pl-10 h-9 text-sm"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             onFocus={() => searchQuery.trim() && setShowSearch(true)}
@@ -111,8 +123,6 @@ export function Header() {
               <X className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
           )}
-
-          {/* Search Results Dropdown */}
           {showSearch && (
             <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-lg border bg-white shadow-lg">
               {searching ? (
@@ -146,49 +156,57 @@ export function Header() {
         </div>
       </div>
 
-      {/* Right side */}
-      <div className="flex items-center gap-4">
+      {/* Right: Library + Facility selectors, notifications, language, user */}
+      <div className="flex items-center gap-3">
+        {/* Library (Accreditation) Selector */}
+        <select
+          className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 outline-none focus:border-[#1a5276] focus:ring-1 focus:ring-[#1a5276]"
+          value={selectedAccreditation?.id || ""}
+          onChange={e => {
+            const acc = accreditations.find(a => a.id === e.target.value);
+            setSelectedAccreditation(acc || null);
+          }}
+        >
+          {accreditations.map(a => (
+            <option key={a.id} value={a.id}>{a.code}</option>
+          ))}
+        </select>
+
         {/* Facility Selector */}
-        <div className="flex items-center gap-2 rounded-md border px-3 py-1.5">
-          <Building2 className="h-4 w-4 text-muted-foreground" />
-          <select
-            className="border-none bg-transparent text-sm font-medium outline-none"
-            value={selectedFacility}
-            onChange={e => setSelectedFacility(e.target.value)}
-          >
-            {facilities.map(f => (
-              <option key={f.id} value={f.name}>{f.name}</option>
-            ))}
-            {facilities.length === 0 && (
-              <option>King Fahad Medical City</option>
-            )}
-          </select>
-        </div>
+        <select
+          className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm font-medium text-gray-700 outline-none focus:border-[#1a5276] focus:ring-1 focus:ring-[#1a5276]"
+          value={selectedFacility?.id || ""}
+          onChange={e => {
+            const fac = facilities.find(f => f.id === e.target.value);
+            setSelectedFacility(fac || null);
+          }}
+        >
+          {facilities.map(f => (
+            <option key={f.id} value={f.id}>{f.name}</option>
+          ))}
+        </select>
 
         {/* Notifications */}
         <div className="relative" ref={notifRef}>
           <Button
             variant="ghost"
             size="icon"
-            className="relative"
+            className="relative h-9 w-9"
             onClick={() => setShowNotifications(!showNotifications)}
           >
-            <Bell className="h-5 w-5" />
+            <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
-              <Badge className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-[10px]" variant="destructive">
+              <Badge className="absolute -right-1 -top-1 h-4 w-4 rounded-full p-0 text-[9px]" variant="destructive">
                 {unreadCount}
               </Badge>
             )}
           </Button>
-
           {showNotifications && (
             <div className="absolute right-0 top-full z-50 mt-1 w-80 rounded-lg border bg-white shadow-lg">
               <div className="flex items-center justify-between border-b px-4 py-2">
                 <h3 className="text-sm font-semibold">Notifications</h3>
                 {unreadCount > 0 && (
-                  <button className="text-xs text-primary hover:underline" onClick={handleMarkAllRead}>
-                    Mark all read
-                  </button>
+                  <button className="text-xs text-primary hover:underline" onClick={handleMarkAllRead}>Mark all read</button>
                 )}
               </div>
               <ScrollArea className="max-h-[300px]">
@@ -220,14 +238,20 @@ export function Header() {
           )}
         </div>
 
+        {/* Language */}
+        <Button variant="ghost" size="sm" className="h-9 gap-1.5 text-sm text-gray-600">
+          <Globe className="h-3.5 w-3.5" />
+          English
+        </Button>
+
         {/* User */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-white">
-            <User className="h-5 w-5" />
+        <div className="flex items-center gap-2.5 border-l pl-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1a5276] text-white">
+            <User className="h-4 w-4" />
           </div>
           <div className="hidden flex-col md:flex">
-            <span className="text-sm font-medium">Dr. Varun Mehta</span>
-            <span className="text-[11px] text-muted-foreground">Quality Director</span>
+            <span className="text-xs font-semibold text-[#1a5276]">Welcome ! Super Client Admin</span>
+            <span className="text-[10px] text-muted-foreground">demo.admin@accrepro.com</span>
           </div>
         </div>
       </div>

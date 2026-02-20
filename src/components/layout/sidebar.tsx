@@ -7,19 +7,17 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   ShieldCheck,
-  ScanSearch,
-  FileCheck2,
-  ClipboardList,
-  FolderOpen,
+  ClipboardCheck,
   FileText,
-  Bot,
+  Activity,
   Settings,
   ChevronLeft,
   ChevronRight,
+  Bot,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
@@ -30,10 +28,9 @@ import {
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Manage Accreditation", href: "/accreditations", icon: ShieldCheck },
-  { name: "AI Assessment", href: "/assessment", icon: ScanSearch },
-  { name: "Gap Analysis", href: "/gap-analysis", icon: FileCheck2 },
-  { name: "Survey Workspace", href: "/survey", icon: ClipboardList },
-  { name: "Evidence Library", href: "/evidence", icon: FolderOpen },
+  { name: "Self Assessment", href: "/self-assessment", icon: ClipboardCheck },
+  { name: "Manage Activity", href: "/manage-activity", icon: Activity },
+  { name: "Gap Analysis", href: "/gap-analysis", icon: BarChart3 },
   { name: "Policies & Documents", href: "/policies", icon: FileText },
   { name: "AI Co-Pilot", href: "/copilot", icon: Bot },
 ];
@@ -54,35 +51,27 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          "relative flex flex-col border-r bg-white transition-all duration-300",
-          collapsed ? "w-[68px]" : "w-[260px]"
+          "relative flex flex-col bg-[#1a5276] transition-all duration-300",
+          collapsed ? "w-[60px]" : "w-[240px]"
         )}
       >
-        <div className="flex h-16 items-center border-b px-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <ShieldCheck className="h-5 w-5 text-white" />
+        {/* Logo */}
+        <div className="flex h-14 items-center justify-center border-b border-white/10 px-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
+              <ShieldCheck className="h-4.5 w-4.5 text-white" />
             </div>
             {!collapsed && (
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-foreground">
-                  AI Surveyor
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  by AccrePro
-                </span>
+                <span className="text-sm font-bold text-white">AccrePro</span>
+                <span className="text-[9px] text-white/60">AI Surveyor</span>
               </div>
             )}
           </div>
         </div>
 
-        <ScrollArea className="flex-1 py-4">
-          <div className="space-y-1 px-3">
-            {!collapsed && (
-              <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Main
-              </p>
-            )}
+        <ScrollArea className="flex-1 py-3">
+          <div className="space-y-1 px-2">
             {navigation.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -95,14 +84,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      ? "bg-white/20 text-white"
+                      : "text-white/70 hover:bg-white/10 hover:text-white",
                     collapsed && "justify-center px-2"
                   )}
                 >
-                  <item.icon
-                    className={cn("h-5 w-5 shrink-0", isActive && "text-primary")}
-                  />
+                  <item.icon className={cn("h-5 w-5 shrink-0")} />
                   {!collapsed && <span>{item.name}</span>}
                 </Link>
               );
@@ -111,25 +98,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 return (
                   <Tooltip key={item.name}>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                    <TooltipContent side="right">
+                    <TooltipContent side="right" className="bg-[#1a5276] text-white border-[#1a5276]">
                       <p>{item.name}</p>
                     </TooltipContent>
                   </Tooltip>
                 );
               }
 
-              return linkContent;
+              return <React.Fragment key={item.name}>{linkContent}</React.Fragment>;
             })}
           </div>
 
-          <Separator className="my-4" />
+          <div className="mx-2 my-3 border-t border-white/10" />
 
-          <div className="space-y-1 px-3">
-            {!collapsed && (
-              <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Administration
-              </p>
-            )}
+          <div className="space-y-1 px-2">
             {adminNavigation.map((item) => {
               const isActive = pathname.startsWith(item.href);
 
@@ -140,14 +122,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      ? "bg-white/20 text-white"
+                      : "text-white/70 hover:bg-white/10 hover:text-white",
                     collapsed && "justify-center px-2"
                   )}
                 >
-                  <item.icon
-                    className={cn("h-5 w-5 shrink-0", isActive && "text-primary")}
-                  />
+                  <item.icon className={cn("h-5 w-5 shrink-0")} />
                   {!collapsed && <span>{item.name}</span>}
                 </Link>
               );
@@ -156,24 +136,24 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 return (
                   <Tooltip key={item.name}>
                     <TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-                    <TooltipContent side="right">
+                    <TooltipContent side="right" className="bg-[#1a5276] text-white border-[#1a5276]">
                       <p>{item.name}</p>
                     </TooltipContent>
                   </Tooltip>
                 );
               }
 
-              return linkContent;
+              return <React.Fragment key={item.name}>{linkContent}</React.Fragment>;
             })}
           </div>
         </ScrollArea>
 
-        <div className="border-t p-3">
+        <div className="border-t border-white/10 p-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={onToggle}
-            className="w-full justify-center"
+            className="w-full justify-center text-white/70 hover:bg-white/10 hover:text-white"
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4" />
