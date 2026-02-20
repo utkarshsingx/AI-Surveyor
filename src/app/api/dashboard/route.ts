@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// Helper: parse JSON string fields from Prisma models
 function parseJsonFields<T extends Record<string, unknown>>(obj: T, fields: string[]): T {
   const result = { ...obj };
   for (const field of fields) {
@@ -16,12 +15,17 @@ function parseJsonFields<T extends Record<string, unknown>>(obj: T, fields: stri
   return result;
 }
 
-// GET /api/dashboard — aggregated dashboard data
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const facilityId = req.nextUrl.searchParams.get("facilityId");
+
+    const projectWhere = facilityId ? { facilityId } : {};
+
     const projects = await prisma.surveyProject.findMany({
+      where: projectWhere,
       include: {
         facility: true,
+        accreditation: true,
         chapterScores: true,
         createdBy: { select: { name: true } },
       },
@@ -34,14 +38,11 @@ export async function GET() {
       take: 15,
     });
 
-    // Get compliance scores from the latest assessment
     const latestAssessment = await prisma.assessment.findFirst({
       where: { status: "completed" },
       orderBy: { completedAt: "desc" },
       include: {
-        complianceScores: {
-          include: { evidenceMatches: true },
-        },
+        complianceScores: { include: { evidenceMatches: true } },
       },
     });
 
@@ -49,10 +50,21 @@ export async function GET() {
       parseJsonFields(cs, ["evidenceMissing", "gaps", "recommendations"])
     );
 
+    const accreditations = await prisma.accreditation.findMany({
+      include: {
+        chapters: { orderBy: { sortOrder: "asc" }, select: { id: true, code: true, name: true } },
+        projects: { select: { id: true, overallScore: true, status: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
     const formattedProjects = projects.map(p => ({
       id: p.id,
       name: p.name,
       facility: p.facility.name,
+      facility_id: p.facilityId,
+      accreditation_id: p.accreditationId,
+      accreditation_name: p.accreditation?.name || "",
       standard_version: p.standardVersion,
       scope: p.scope,
       selected_chapters: JSON.parse(p.selectedChapters),
@@ -105,10 +117,26 @@ export async function GET() {
       recommendations: cs.recommendations,
     }));
 
+    const formattedAccreditations = accreditations.map(a => ({
+      id: a.id,
+      name: a.name,
+      code: a.code,
+      description: a.description,
+      version: a.version,
+      status: a.status,
+      created_at: a.createdAt.toISOString(),
+      chapters: a.chapters,
+      project_count: a.projects.length,
+      overall_progress: a.projects.length > 0
+        ? Math.round(a.projects.reduce((s, p) => s + p.overallScore, 0) / a.projects.length)
+        : 0,
+    }));
+
     return NextResponse.json({
       projects: formattedProjects,
       activityLog: formattedLogs,
       complianceScores: formattedScores,
+      accreditations: formattedAccreditations,
     });
   } catch (error) {
     console.error("Dashboard API error:", error);

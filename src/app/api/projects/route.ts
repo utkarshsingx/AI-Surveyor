@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET /api/projects — list all projects
 export async function GET() {
   try {
     const projects = await prisma.surveyProject.findMany({
       include: {
         facility: true,
+        accreditation: true,
         chapterScores: true,
         createdBy: { select: { name: true } },
       },
@@ -18,6 +18,8 @@ export async function GET() {
       name: p.name,
       facility: p.facility.name,
       facility_id: p.facilityId,
+      accreditation_id: p.accreditationId,
+      accreditation_name: p.accreditation?.name || "",
       standard_version: p.standardVersion,
       scope: p.scope,
       selected_chapters: JSON.parse(p.selectedChapters),
@@ -48,17 +50,15 @@ export async function GET() {
   }
 }
 
-// POST /api/projects — create a new project
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, facilityId, standardVersion, scope, selectedChapters, departments, deadline, teamMembers } = body;
+    const { name, facilityId, accreditationId, standardVersion, scope, selectedChapters, departments, deadline, teamMembers } = body;
 
     if (!name || !facilityId || !deadline) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Use first user as default creator
     const defaultUser = await prisma.user.findFirst();
     if (!defaultUser) {
       return NextResponse.json({ error: "No users found" }, { status: 500 });
@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         facilityId,
-        standardVersion: standardVersion || "CBAHI-Sibahi 2026 v1.0",
+        accreditationId: accreditationId || null,
+        standardVersion: standardVersion || "CBAHI 2026 v1.0",
         scope: scope || "full",
         selectedChapters: JSON.stringify(selectedChapters || []),
         departments: JSON.stringify(departments || ["All"]),
@@ -80,7 +81,6 @@ export async function POST(request: NextRequest) {
       include: { facility: true, createdBy: { select: { name: true } } },
     });
 
-    // Log activity
     await prisma.activityLog.create({
       data: {
         action: "Survey project created",

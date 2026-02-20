@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET /api/standards — list all standards with sub-standards and MEs
 export async function GET() {
   try {
     const standards = await prisma.standard.findMany({
       include: {
+        chapter: { select: { id: true, code: true, name: true } },
         subStandards: {
-          include: {
-            measurableElements: true,
-          },
+          include: { measurableElements: true },
         },
       },
     });
@@ -17,13 +15,14 @@ export async function GET() {
     const formatted = standards.map(std => ({
       id: std.id,
       chapter_id: std.chapterId,
-      chapter_name: std.chapterName,
+      chapter_name: std.chapter.name,
+      code: std.code,
       standard_name: std.standardName,
       description: std.description,
-      version: std.version,
       criticality: std.criticality,
       sub_standards: std.subStandards.map(ss => ({
         id: ss.id,
+        code: ss.code,
         name: ss.name,
         measurable_elements: ss.measurableElements.map(me => ({
           id: me.id,

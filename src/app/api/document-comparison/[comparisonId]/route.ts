@@ -46,9 +46,9 @@ export async function GET(
             category: true,
             description: true,
             filePath: true,
-            standard: {
+            chapter: {
               select: {
-                standardName: true,
+                name: true,
                 description: true,
               },
             },
@@ -87,10 +87,10 @@ export async function GET(
         content: masterContent,
         description: comparison.masterDocument.description,
       },
-      comparison.masterDocument.standard
+      comparison.masterDocument.chapter
         ? {
-            name: comparison.masterDocument.standard.standardName,
-            description: comparison.masterDocument.standard.description,
+            name: comparison.masterDocument.chapter.name,
+            description: comparison.masterDocument.chapter.description,
           }
         : undefined
     );

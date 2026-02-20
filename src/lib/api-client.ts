@@ -4,6 +4,12 @@
  */
 
 import type {
+  Accreditation,
+  Chapter,
+  Standard,
+  SubStandard,
+  Activity,
+  ActivityResponse,
   SurveyProject,
   Evidence,
   ComplianceScore,
@@ -12,6 +18,7 @@ import type {
   ActivityLog,
   ChecklistTemplate,
   CopilotMessage,
+  Policy,
 } from "@/types";
 
 async function fetcher<T>(url: string, options?: RequestInit): Promise<T> {
@@ -27,14 +34,92 @@ async function fetcher<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 // ============================================
+// ACCREDITATIONS
+// ============================================
+export async function fetchAccreditations(): Promise<Accreditation[]> {
+  return fetcher("/api/accreditations");
+}
+
+export async function fetchAccreditation(id: string): Promise<Accreditation> {
+  return fetcher(`/api/accreditations/${id}`);
+}
+
+export async function fetchAccreditationChapters(accreditationId: string): Promise<Chapter[]> {
+  return fetcher(`/api/accreditations/${accreditationId}/chapters`);
+}
+
+// ============================================
+// CHAPTERS & DRILL-DOWN
+// ============================================
+export async function fetchChapterStandards(chapterId: string): Promise<Standard[]> {
+  return fetcher(`/api/chapters/${chapterId}/standards`);
+}
+
+export async function fetchSubStandardActivities(subStandardId: string, projectId?: string): Promise<{
+  sub_standard: SubStandard;
+  activities: Activity[];
+}> {
+  const qs = projectId ? `?projectId=${projectId}` : "";
+  return fetcher(`/api/sub-standards/${subStandardId}/activities${qs}`);
+}
+
+// ============================================
+// ACTIVITIES & RESPONSES
+// ============================================
+export async function saveActivityResponse(data: {
+  activityId: string;
+  projectId: string;
+  value: string;
+  status?: string;
+  notes?: string;
+  files?: string[];
+}): Promise<ActivityResponse> {
+  return fetcher("/api/activity-responses", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchActivityResponses(projectId: string, subStandardId?: string): Promise<ActivityResponse[]> {
+  const params = new URLSearchParams({ projectId });
+  if (subStandardId) params.set("subStandardId", subStandardId);
+  return fetcher(`/api/activity-responses?${params.toString()}`);
+}
+
+// ============================================
+// POLICIES
+// ============================================
+export async function fetchPolicies(params?: { category?: string; status?: string; search?: string }): Promise<Policy[]> {
+  const query = new URLSearchParams();
+  if (params?.category) query.set("category", params.category);
+  if (params?.status) query.set("status", params.status);
+  if (params?.search) query.set("search", params.search);
+  const qs = query.toString();
+  return fetcher(`/api/policies${qs ? `?${qs}` : ""}`);
+}
+
+export async function createPolicy(data: Partial<Policy>): Promise<{ id: string }> {
+  return fetcher("/api/policies", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deletePolicy(id: string): Promise<void> {
+  await fetcher(`/api/policies/${id}`, { method: "DELETE" });
+}
+
+// ============================================
 // DASHBOARD
 // ============================================
-export async function fetchDashboard(): Promise<{
+export async function fetchDashboard(facilityId?: string): Promise<{
   projects: SurveyProject[];
   activityLog: ActivityLog[];
   complianceScores: ComplianceScore[];
+  accreditations: Accreditation[];
 }> {
-  return fetcher("/api/dashboard");
+  const qs = facilityId ? `?facilityId=${facilityId}` : "";
+  return fetcher(`/api/dashboard${qs}`);
 }
 
 // ============================================
@@ -51,6 +136,7 @@ export async function fetchProject(id: string): Promise<SurveyProject> {
 export async function createProject(data: {
   name: string;
   facilityId: string;
+  accreditationId?: string;
   standardVersion?: string;
   scope?: string;
   selectedChapters?: string[];
@@ -155,6 +241,24 @@ export async function fetchAssessmentResults(assessmentId: string): Promise<{
   scores: ComplianceScore[];
 }> {
   return fetcher(`/api/assessments/${assessmentId}/results`);
+}
+
+// Self-assessment within hierarchy
+export async function runSelfAssessment(data: {
+  projectId: string;
+  chapterId?: string;
+  standardId?: string;
+  subStandardId?: string;
+}): Promise<{
+  assessmentId: string;
+  status: string;
+  results: ComplianceScore[];
+  overallScore: number;
+}> {
+  return fetcher("/api/assessments/self-assess", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 }
 
 // ============================================

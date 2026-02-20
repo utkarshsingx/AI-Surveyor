@@ -84,10 +84,11 @@ export function Header() {
 
   const getSearchLink = (result: { type: string; id: string }) => {
     switch (result.type) {
+      case "accreditation": return `/accreditations/${result.id}`;
       case "evidence": return "/evidence";
       case "project": return "/survey";
-      case "standard": return "/assessment";
-      case "measurable_element": return "/gap-analysis";
+      case "standard": return "/accreditations";
+      case "me": return "/gap-analysis";
       default: return "/";
     }
   };

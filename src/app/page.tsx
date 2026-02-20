@@ -14,6 +14,8 @@ import {
   FolderOpen,
   Activity,
   Loader2,
+  ShieldCheck,
+  BookOpen,
 } from "lucide-react";
 import {
   Card,
@@ -27,12 +29,13 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { fetchDashboard } from "@/lib/api-client";
-import type { SurveyProject, ActivityLog, ComplianceScore } from "@/types";
+import type { SurveyProject, ActivityLog, ComplianceScore, Accreditation } from "@/types";
 
 export default function DashboardPage() {
   const [projects, setProjects] = useState<SurveyProject[]>([]);
   const [activityLog, setActivityLog] = useState<ActivityLog[]>([]);
   const [complianceScores, setComplianceScores] = useState<ComplianceScore[]>([]);
+  const [accreditations, setAccreditations] = useState<Accreditation[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,6 +44,7 @@ export default function DashboardPage() {
         setProjects(data.projects);
         setActivityLog(data.activityLog);
         setComplianceScores(data.complianceScores);
+        setAccreditations((data.accreditations || []) as unknown as Accreditation[]);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -68,6 +72,12 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground">AI-powered accreditation readiness overview</p>
         </div>
         <div className="flex gap-3">
+          <Link href="/accreditations">
+            <Button variant="outline" className="gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              Manage Accreditation
+            </Button>
+          </Link>
           <Link href="/assessment">
             <Button className="gap-2">
               <ScanSearch className="h-4 w-4" />
@@ -77,6 +87,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Score Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="p-6">
@@ -139,8 +150,55 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Accreditations Overview */}
+      {accreditations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Active Accreditations</CardTitle>
+                <CardDescription>Click to drill into any accreditation</CardDescription>
+              </div>
+              <Link href="/accreditations"><Button variant="outline" size="sm" className="gap-1">View All <ArrowRight className="h-3 w-3" /></Button></Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {accreditations.map((acc) => (
+                <Link key={acc.id} href={`/accreditations/${acc.id}`}>
+                  <div className="flex items-center gap-4 rounded-lg border p-4 transition-all hover:border-primary/50 hover:shadow-md cursor-pointer">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10">
+                      <ShieldCheck className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm">{acc.code}</p>
+                        <Badge variant="success" className="text-[10px]">{acc.status}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{acc.name}</p>
+                      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <BookOpen className="h-3 w-3" /> {acc.chapters?.length || 0} chapters
+                        </span>
+                        <span>{acc.project_count || 0} projects</span>
+                      </div>
+                    </div>
+                    {(acc.overall_progress || 0) > 0 && (
+                      <span className={`text-lg font-bold ${(acc.overall_progress || 0) >= 80 ? "text-green-600" : (acc.overall_progress || 0) >= 50 ? "text-yellow-600" : "text-red-600"}`}>
+                        {acc.overall_progress}%
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
+          {/* Active Projects */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -160,11 +218,13 @@ export default function DashboardPage() {
                         <h3 className="font-medium">{project.name}</h3>
                         <Badge variant={project.status === "completed" ? "success" : project.status === "in-progress" ? "default" : "secondary"}>{project.status.replace("-", " ")}</Badge>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{project.facility} &middot; {project.standard_version}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {project.facility}
+                        {project.accreditation_name && ` | ${project.accreditation_name}`}
+                      </p>
                       <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Due: {project.deadline}</span>
                         <span>{project.team_members.length} members</span>
-                        <span>{project.scope === "full" ? "Full Assessment" : "Partial"}</span>
                       </div>
                     </div>
                     <div className="ml-4 flex flex-col items-end gap-2">
@@ -184,11 +244,12 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Chapter Readiness */}
           {activeProject && activeProject.chapter_scores.length > 0 && (
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle className="text-lg">Chapter Readiness Breakdown</CardTitle>
-                <CardDescription>{activeProject.name} — score by chapter</CardDescription>
+                <CardDescription>{activeProject.name} -- score by chapter</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -198,9 +259,9 @@ export default function DashboardPage() {
                         <span className="text-sm font-medium">{chapter.chapter_name}</span>
                         <div className="flex items-center gap-3">
                           <div className="flex gap-1.5 text-xs">
-                            <span className="text-green-600">✅ {chapter.compliant}</span>
-                            <span className="text-yellow-600">⚠️ {chapter.partial}</span>
-                            <span className="text-red-600">❌ {chapter.non_compliant}</span>
+                            <span className="text-green-600">{chapter.compliant} compliant</span>
+                            <span className="text-yellow-600">{chapter.partial} partial</span>
+                            <span className="text-red-600">{chapter.non_compliant} gaps</span>
                           </div>
                           <span className={`text-sm font-bold ${chapter.score >= 80 ? "text-green-600" : chapter.score >= 50 ? "text-yellow-600" : "text-red-600"}`}>{chapter.score}%</span>
                         </div>
@@ -214,6 +275,7 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Right Column */}
         <div>
           <Card className="h-fit">
             <CardHeader>
@@ -223,7 +285,7 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[500px] pr-4">
+              <ScrollArea className="h-[400px] pr-4">
                 <div className="space-y-4">
                   {activityLog.map((log) => (
                     <div key={log.id} className="flex gap-3">
@@ -238,7 +300,7 @@ export default function DashboardPage() {
                         <p className="text-sm font-medium">{log.action}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{log.details}</p>
                         <p className="mt-1 text-[10px] text-muted-foreground">
-                          {log.user} &middot; {new Date(log.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          {log.user} -- {new Date(log.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </p>
                       </div>
                     </div>
@@ -252,9 +314,9 @@ export default function DashboardPage() {
             <CardHeader><CardTitle className="text-lg">Quick Actions</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-2">
+                <Link href="/accreditations" className="block"><Button variant="outline" className="w-full justify-start gap-2"><ShieldCheck className="h-4 w-4" />Manage Accreditation</Button></Link>
                 <Link href="/assessment" className="block"><Button variant="outline" className="w-full justify-start gap-2"><ScanSearch className="h-4 w-4" />Run AI Assessment</Button></Link>
                 <Link href="/evidence" className="block"><Button variant="outline" className="w-full justify-start gap-2"><FolderOpen className="h-4 w-4" />Upload Evidence</Button></Link>
-                <Link href="/reports" className="block"><Button variant="outline" className="w-full justify-start gap-2"><FileCheck2 className="h-4 w-4" />Generate Report</Button></Link>
                 <Link href="/gap-analysis" className="block"><Button variant="outline" className="w-full justify-start gap-2"><AlertTriangle className="h-4 w-4" />View Gap Analysis</Button></Link>
               </div>
             </CardContent>

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET /api/admin/master-documents
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -10,6 +9,7 @@ export async function GET(request: NextRequest) {
     const docs = await prisma.masterDocument.findMany({
       include: {
         uploadedBy: { select: { name: true } },
+        chapter: { select: { id: true, code: true, name: true } },
         mappings: { include: { me: { select: { code: true } } } },
       },
       orderBy: { uploadDate: "desc" },
@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
     const formatted = filtered.map(d => ({
       id: d.id,
       name: d.name,
-      standard_id: d.standardId,
       chapter_id: d.chapterId,
+      chapter_name: d.chapter.name,
       description: d.description,
       file_type: d.fileType,
       uploaded_by: d.uploadedBy.name,
@@ -37,7 +37,6 @@ export async function GET(request: NextRequest) {
       version: d.version,
       category: d.category,
       status: d.status,
-      last_updated: d.uploadDate.toISOString().split("T")[0],
     }));
 
     return NextResponse.json(formatted);
@@ -47,62 +46,32 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/admin/master-documents — upload/create
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { name, category, mappedMeCodes, chapterId, fileType, description } = body;
 
-    const resolvedName = typeof name === "string" && name.trim()
-      ? name.trim()
-      : "Untitled Master Document";
-
-    if (!resolvedName) {
-      return NextResponse.json({ error: "Name required" }, { status: 400 });
-    }
+    const resolvedName = typeof name === "string" && name.trim() ? name.trim() : "Untitled Master Document";
 
     let defaultUser = await prisma.user.findFirst();
     if (!defaultUser) {
-      const systemEmail = "system@ai-surveyor.local";
-      defaultUser =
-        (await prisma.user.findUnique({ where: { email: systemEmail } })) ||
-        (await prisma.user.create({
-          data: {
-            name: "System User",
-            email: systemEmail,
-            role: "admin",
-          },
-        }));
-    }
-
-    // Find standard by chapter
-    let standard = await prisma.standard.findFirst({
-      where: chapterId ? { chapterId } : {},
-    });
-
-    if (!standard) {
-      standard = await prisma.standard.create({
-        data: {
-          chapterId: chapterId || "GEN",
-          chapterName: "General",
-          standardName: "General Standard",
-          description: "Default standard created for master document uploads.",
-          version: "v1",
-          criticality: "non-critical",
-        },
+      defaultUser = await prisma.user.create({
+        data: { name: "System User", email: "system@ai-surveyor.local", role: "admin" },
       });
     }
 
-    const safePathToken = resolvedName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+    let resolvedChapterId = chapterId;
+    if (!resolvedChapterId) {
+      const firstChapter = await prisma.chapter.findFirst();
+      resolvedChapterId = firstChapter?.id || "";
+    }
+
+    const safePathToken = resolvedName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
     const doc = await prisma.masterDocument.create({
       data: {
         name: resolvedName,
-        standardId: standard.id,
-        chapterId: chapterId || standard.chapterId,
+        chapterId: resolvedChapterId,
         description: description || "",
         fileType: fileType || "application/pdf",
         filePath: `/uploads/master/${safePathToken || "master-doc"}`,
@@ -112,7 +81,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create ME mappings
     if (mappedMeCodes && Array.isArray(mappedMeCodes)) {
       for (const code of mappedMeCodes) {
         const me = await prisma.measurableElement.findFirst({ where: { code: code.trim() } });

@@ -340,7 +340,7 @@ export default function AdminPage() {
                         <td className="px-4 py-3">
                           <Badge variant={doc.status === "active" ? "success" : "outline"}>{doc.status}</Badge>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">{doc.last_updated || doc.upload_date}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{doc.upload_date}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => { e.stopPropagation(); setDetailDoc(doc); }}>

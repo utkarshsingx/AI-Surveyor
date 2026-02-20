@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Fetch master document
     const masterDocument = await prisma.masterDocument.findUnique({
       where: { id: masterDocumentId },
-      include: { standard: true },
+      include: { chapter: true },
     });
 
     if (!masterDocument) {
@@ -94,10 +94,10 @@ export async function POST(request: NextRequest) {
           content: masterContent,
           description: masterDocument.description,
         },
-        masterDocument.standard
+        masterDocument.chapter
           ? {
-              name: masterDocument.standard.standardName,
-              description: masterDocument.standard.description,
+              name: masterDocument.chapter.name,
+              description: masterDocument.chapter.description,
             }
           : undefined
       );
@@ -167,10 +167,10 @@ export async function POST(request: NextRequest) {
         content: masterContent,
         description: masterDocument.description,
       },
-      masterDocument.standard
+      masterDocument.chapter
         ? {
-            name: masterDocument.standard.standardName,
-            description: masterDocument.standard.description,
+            name: masterDocument.chapter.name,
+            description: masterDocument.chapter.description,
           }
         : undefined
     );

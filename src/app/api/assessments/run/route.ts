@@ -136,16 +136,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate chapter scores
-    const standards = await prisma.standard.findMany({
+    const chapters = await prisma.chapter.findMany({
       include: {
-        subStandards: {
-          include: { measurableElements: true },
+        standards: {
+          include: {
+            subStandards: {
+              include: { measurableElements: true },
+            },
+          },
         },
       },
     });
 
-    for (const std of standards) {
-      const chapterMeIds = std.subStandards.flatMap(ss => ss.measurableElements.map(me => me.id));
+    for (const ch of chapters) {
+      const chapterMeIds = ch.standards.flatMap(std =>
+        std.subStandards.flatMap(ss => ss.measurableElements.map(me => me.id))
+      );
       const chapterResults = results.filter(r => chapterMeIds.includes(r.meId));
 
       if (chapterResults.length === 0) continue;
@@ -159,12 +165,12 @@ export async function POST(request: NextRequest) {
 
       await prisma.chapterScore.upsert({
         where: {
-          projectId_chapterId: { projectId, chapterId: std.chapterId },
+          projectId_chapterId: { projectId, chapterId: ch.id },
         },
         create: {
           projectId,
-          chapterId: std.chapterId,
-          chapterName: std.chapterName,
+          chapterId: ch.id,
+          chapterName: ch.name,
           score,
           totalMes: chapterResults.length,
           compliant,

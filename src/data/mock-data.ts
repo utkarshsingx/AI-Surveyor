@@ -17,6 +17,7 @@ export const mockProjects: SurveyProject[] = [
     id: "PRJ-001",
     name: "Sibahi 2026 Full Readiness Assessment",
     facility: "King Fahad Medical City",
+    facility_id: "FAC-001",
     standard_version: "CBAHI-Sibahi 2026 v1.0",
     scope: "full",
     selected_chapters: ["CH-01", "CH-02", "CH-03", "CH-05", "CH-06"],
@@ -40,6 +41,7 @@ export const mockProjects: SurveyProject[] = [
     id: "PRJ-002",
     name: "IPC Chapter Focused Review",
     facility: "King Fahad Medical City",
+    facility_id: "FAC-001",
     standard_version: "CBAHI-Sibahi 2026 v1.0",
     scope: "partial",
     selected_chapters: ["CH-03"],
@@ -57,6 +59,7 @@ export const mockProjects: SurveyProject[] = [
     id: "PRJ-003",
     name: "Medication Management Deep Dive",
     facility: "National Guard Hospital",
+    facility_id: "FAC-002",
     standard_version: "CBAHI-Sibahi 2026 v1.0",
     scope: "partial",
     selected_chapters: ["CH-05"],
@@ -449,7 +452,6 @@ export const mockMasterDocuments: MasterDocument[] = [
   {
     id: "MD-001",
     name: "CBAHI Hand Hygiene Standard Reference",
-    standard_id: "STD-IC",
     chapter_id: "CH-03",
     description: "Gold standard reference for hand hygiene policy requirements per CBAHI/WHO guidelines.",
     file_type: "application/pdf",
@@ -461,7 +463,6 @@ export const mockMasterDocuments: MasterDocument[] = [
   {
     id: "MD-002",
     name: "CBAHI Infection Control Complete Chapter Guide",
-    standard_id: "STD-IC",
     chapter_id: "CH-03",
     description: "Complete reference guide for all IPC measurable elements including sterilization and HAI surveillance.",
     file_type: "application/pdf",
@@ -473,7 +474,6 @@ export const mockMasterDocuments: MasterDocument[] = [
   {
     id: "MD-003",
     name: "CBAHI Patient Safety Standards Master",
-    standard_id: "STD-PS",
     chapter_id: "CH-01",
     description: "Master reference for patient safety standards including patient identification, fire safety, and medication safety.",
     file_type: "application/pdf",
@@ -485,7 +485,6 @@ export const mockMasterDocuments: MasterDocument[] = [
   {
     id: "MD-004",
     name: "CBAHI Medication Management Reference",
-    standard_id: "STD-MM",
     chapter_id: "CH-05",
     description: "Reference guide for medication management standards covering formulary, storage, and administration.",
     file_type: "application/pdf",
@@ -517,7 +516,7 @@ export const mockActivityLog: ActivityLog[] = [
 // ============================================
 export const mockChecklistTemplate: ChecklistTemplate = {
   id: "CKL-IPC-001",
-  standard_id: "STD-IC",
+  standard_id: "STD-SIPC1",
   items: [
     {
       id: "CKI-001",

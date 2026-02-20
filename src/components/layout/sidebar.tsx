@@ -6,11 +6,12 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
+  ShieldCheck,
   ScanSearch,
   FileCheck2,
   ClipboardList,
   FolderOpen,
-  Shield,
+  FileText,
   Bot,
   Settings,
   ChevronLeft,
@@ -28,11 +29,12 @@ import {
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Manage Accreditation", href: "/accreditations", icon: ShieldCheck },
   { name: "AI Assessment", href: "/assessment", icon: ScanSearch },
   { name: "Gap Analysis", href: "/gap-analysis", icon: FileCheck2 },
   { name: "Survey Workspace", href: "/survey", icon: ClipboardList },
   { name: "Evidence Library", href: "/evidence", icon: FolderOpen },
-  { name: "Reports", href: "/reports", icon: Shield },
+  { name: "Policies & Documents", href: "/policies", icon: FileText },
   { name: "AI Co-Pilot", href: "/copilot", icon: Bot },
 ];
 
@@ -56,11 +58,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           collapsed ? "w-[68px]" : "w-[260px]"
         )}
       >
-        {/* Logo */}
         <div className="flex h-16 items-center border-b px-4">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <Shield className="h-5 w-5 text-white" />
+              <ShieldCheck className="h-5 w-5 text-white" />
             </div>
             {!collapsed && (
               <div className="flex flex-col">
@@ -75,7 +76,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         </div>
 
-        {/* Navigation */}
         <ScrollArea className="flex-1 py-4">
           <div className="space-y-1 px-3">
             {!collapsed && (
@@ -168,7 +168,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         </ScrollArea>
 
-        {/* Collapse Toggle */}
         <div className="border-t p-3">
           <Button
             variant="ghost"

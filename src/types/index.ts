@@ -2,22 +2,56 @@
 // AI Surveyor — Core Type Definitions
 // ============================================
 
-// Standards & Measurable Elements
+// Accreditation & Hierarchy
+export interface Accreditation {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  version: string;
+  status: "active" | "draft" | "archived";
+  created_at: string;
+  chapters: Chapter[];
+  project_count?: number;
+  overall_progress?: number;
+}
+
+export interface Chapter {
+  id: string;
+  accreditation_id: string;
+  code: string;
+  name: string;
+  description: string;
+  sort_order: number;
+  standards: Standard[];
+  score?: number;
+  total_standards?: number;
+}
+
 export interface Standard {
   id: string;
   chapter_id: string;
-  chapter_name: string;
+  code: string;
   standard_name: string;
   description: string;
-  sub_standards: SubStandard[];
-  version: string;
   criticality: "critical" | "non-critical";
+  sort_order: number;
+  sub_standards: SubStandard[];
 }
 
 export interface SubStandard {
   id: string;
+  standard_id: string;
+  code: string;
   name: string;
+  sort_order: number;
   measurable_elements: MeasurableElement[];
+  activities: Activity[];
+  completion?: {
+    total: number;
+    completed: number;
+    percentage: number;
+  };
 }
 
 export interface MeasurableElement {
@@ -32,6 +66,32 @@ export interface MeasurableElement {
 }
 
 export type EvidenceType = "policy" | "procedure" | "record" | "observation" | "interview" | "training" | "audit";
+
+// Activities
+export interface Activity {
+  id: string;
+  sub_standard_id: string;
+  me_id?: string;
+  type: "checklist" | "data_collection" | "document_evidence";
+  label: string;
+  description: string;
+  field_type: "boolean" | "text" | "number" | "date" | "file" | "select";
+  options?: string[];
+  required: boolean;
+  sort_order: number;
+  response?: ActivityResponse;
+}
+
+export interface ActivityResponse {
+  id: string;
+  activity_id: string;
+  project_id: string;
+  value: string;
+  status: "pending" | "completed" | "reviewed";
+  notes: string;
+  files: string[];
+  updated_at: string;
+}
 
 // Evidence & Documents
 export interface Evidence {
@@ -79,6 +139,9 @@ export interface SurveyProject {
   id: string;
   name: string;
   facility: string;
+  facility_id: string;
+  accreditation_id?: string;
+  accreditation_name?: string;
   standard_version: string;
   scope: "full" | "partial";
   selected_chapters: string[];
@@ -123,7 +186,6 @@ export interface CorrectiveAction {
 export interface MasterDocument {
   id: string;
   name: string;
-  standard_id: string;
   chapter_id: string;
   description: string;
   file_type: string;
@@ -133,7 +195,24 @@ export interface MasterDocument {
   version: string;
   category?: string;
   status?: string;
-  last_updated?: string;
+}
+
+// Policies
+export interface Policy {
+  id: string;
+  name: string;
+  code?: string;
+  category: "policy" | "procedure" | "guideline" | "manual";
+  department: string;
+  description: string;
+  file_type: string;
+  file_path: string;
+  version: string;
+  status: "active" | "draft" | "archived" | "expired";
+  effective_date?: string;
+  review_date?: string;
+  owner: string;
+  mapped_sub_standards?: string[];
 }
 
 // Activity Log
@@ -146,7 +225,7 @@ export interface ActivityLog {
   type: "upload" | "scan" | "review" | "report" | "override" | "system";
 }
 
-// Checklist Template (JSON-driven)
+// Checklist Template (Legacy / Admin)
 export interface ChecklistTemplate {
   id: string;
   standard_id: string;
