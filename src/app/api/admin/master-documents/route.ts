@@ -51,30 +51,61 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, category, mappedMeCodes, chapterId } = body;
+    const { name, category, mappedMeCodes, chapterId, fileType, description } = body;
 
-    if (!name) {
+    const resolvedName = typeof name === "string" && name.trim()
+      ? name.trim()
+      : "Untitled Master Document";
+
+    if (!resolvedName) {
       return NextResponse.json({ error: "Name required" }, { status: 400 });
     }
 
-    const defaultUser = await prisma.user.findFirst();
+    let defaultUser = await prisma.user.findFirst();
     if (!defaultUser) {
-      return NextResponse.json({ error: "No users" }, { status: 500 });
+      const systemEmail = "system@ai-surveyor.local";
+      defaultUser =
+        (await prisma.user.findUnique({ where: { email: systemEmail } })) ||
+        (await prisma.user.create({
+          data: {
+            name: "System User",
+            email: systemEmail,
+            role: "admin",
+          },
+        }));
     }
 
     // Find standard by chapter
-    const standard = await prisma.standard.findFirst({
+    let standard = await prisma.standard.findFirst({
       where: chapterId ? { chapterId } : {},
     });
 
+    if (!standard) {
+      standard = await prisma.standard.create({
+        data: {
+          chapterId: chapterId || "GEN",
+          chapterName: "General",
+          standardName: "General Standard",
+          description: "Default standard created for master document uploads.",
+          version: "v1",
+          criticality: "non-critical",
+        },
+      });
+    }
+
+    const safePathToken = resolvedName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+
     const doc = await prisma.masterDocument.create({
       data: {
-        name,
-        standardId: standard?.id || "",
-        chapterId: chapterId || standard?.chapterId || "",
-        description: body.description || "",
-        fileType: "application/pdf",
-        filePath: `/uploads/master/${name}`,
+        name: resolvedName,
+        standardId: standard.id,
+        chapterId: chapterId || standard.chapterId,
+        description: description || "",
+        fileType: fileType || "application/pdf",
+        filePath: `/uploads/master/${safePathToken || "master-doc"}`,
         uploadedById: defaultUser.id,
         category: category || "policy",
         status: "active",

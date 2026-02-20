@@ -53,23 +53,42 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { documentName, type, department, fileType, fileSize, summary } = body;
 
-    if (!documentName) {
+    const resolvedName =
+      typeof documentName === "string" && documentName.trim()
+        ? documentName.trim()
+        : "Untitled Evidence";
+
+    if (!resolvedName) {
       return NextResponse.json({ error: "Document name required" }, { status: 400 });
     }
 
-    const defaultUser = await prisma.user.findFirst();
+    let defaultUser = await prisma.user.findFirst();
     if (!defaultUser) {
-      return NextResponse.json({ error: "No users found" }, { status: 500 });
+      const systemEmail = "system@ai-surveyor.local";
+      defaultUser =
+        (await prisma.user.findUnique({ where: { email: systemEmail } })) ||
+        (await prisma.user.create({
+          data: {
+            name: "System User",
+            email: systemEmail,
+            role: "admin",
+          },
+        }));
     }
+
+    const safePathToken = resolvedName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
 
     const evidence = await prisma.evidence.create({
       data: {
-        documentName,
+        documentName: resolvedName,
         type: type || "policy",
         department: department || "General",
         fileType: fileType || "application/pdf",
         fileSize: fileSize || 0,
-        filePath: `/uploads/${documentName}`,
+        filePath: `/uploads/${safePathToken || "evidence"}`,
         uploadedById: defaultUser.id,
         summary: summary || "",
         status: "pending",
@@ -81,7 +100,7 @@ export async function POST(request: NextRequest) {
       data: {
         action: "Evidence uploaded",
         userId: defaultUser.id,
-        details: `Uploaded ${documentName}`,
+        details: `Uploaded ${resolvedName}`,
         type: "upload",
       },
     });

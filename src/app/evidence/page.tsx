@@ -43,6 +43,8 @@ export default function EvidencePage() {
   const [uploadDept, setUploadDept] = useState("");
   const [uploadSummary, setUploadSummary] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string>("");
 
   // Detail dialog
   const [detailDoc, setDetailDoc] = useState<Evidence | null>(null);
@@ -64,25 +66,34 @@ export default function EvidencePage() {
   }, [loadEvidence]);
 
   const handleUpload = async () => {
-    if (!uploadName.trim()) return;
+    if (!uploadFile) {
+      setUploadError("Please choose a file to upload.");
+      return;
+    }
     setUploading(true);
+    setUploadError("");
     try {
+      const documentName = uploadName.trim() || uploadFile.name || "Untitled Evidence";
       await createEvidence({
-        documentName: uploadName,
+        documentName,
         type: uploadType,
         department: uploadDept || "General",
         summary: uploadSummary,
-        fileType: "application/pdf",
-        fileSize: Math.floor(Math.random() * 5000000) + 100000,
+        fileType: uploadFile.type || "application/octet-stream",
+        fileSize: uploadFile.size || 0,
       });
       setShowUpload(false);
       setUploadName("");
       setUploadType("policy");
       setUploadDept("");
       setUploadSummary("");
+      setUploadFile(null);
       loadEvidence();
     } catch (err) {
       console.error(err);
+      setUploadError(
+        err instanceof Error ? err.message : "Failed to upload evidence"
+      );
     } finally {
       setUploading(false);
     }
@@ -140,6 +151,11 @@ export default function EvidencePage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              {uploadError && (
+                <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {uploadError}
+                </div>
+              )}
               <div>
                 <label className="mb-1 block text-sm font-medium">Document Name</label>
                 <Input
@@ -147,6 +163,25 @@ export default function EvidencePage() {
                   value={uploadName}
                   onChange={e => setUploadName(e.target.value)}
                 />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">File</label>
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt,.rtf"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    setUploadFile(file);
+                    if (file && !uploadName.trim()) {
+                      setUploadName(file.name);
+                    }
+                  }}
+                />
+                {uploadFile && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Selected: {uploadFile.name}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Type</label>
@@ -182,7 +217,7 @@ export default function EvidencePage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowUpload(false)}>Cancel</Button>
-              <Button onClick={handleUpload} disabled={uploading || !uploadName.trim()}>
+              <Button onClick={handleUpload} disabled={uploading || !uploadFile}>
                 {uploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Upload
               </Button>

@@ -224,6 +224,7 @@ export async function createMasterDocument(data: {
   mappedMeCodes?: string[];
   chapterId?: string;
   description?: string;
+  fileType?: string;
 }): Promise<{ id: string; name: string }> {
   return fetcher("/api/admin/master-documents", {
     method: "POST",

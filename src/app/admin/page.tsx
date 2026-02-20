@@ -56,6 +56,8 @@ export default function AdminPage() {
   const [uploadCategory, setUploadCategory] = useState("policy");
   const [uploadMeCodes, setUploadMeCodes] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string>("");
 
   // Detail dialog
   const [detailDoc, setDetailDoc] = useState<MasterDocument | null>(null);
@@ -89,21 +91,31 @@ export default function AdminPage() {
   }, [searchQuery]);
 
   const handleUpload = async () => {
-    if (!uploadName.trim()) return;
+    if (!uploadFile) {
+      setUploadError("Please choose a file to upload.");
+      return;
+    }
     setUploading(true);
+    setUploadError("");
     try {
+      const documentName = uploadName.trim() || uploadFile.name || "Untitled Master Document";
       await createMasterDocument({
-        name: uploadName,
+        name: documentName,
         category: uploadCategory,
         mappedMeCodes: uploadMeCodes.split(",").map(s => s.trim()).filter(Boolean),
+        fileType: uploadFile.type || "application/octet-stream",
       });
       setShowUpload(false);
       setUploadName("");
       setUploadCategory("policy");
       setUploadMeCodes("");
+      setUploadFile(null);
       await loadDocs();
     } catch (err) {
       console.error(err);
+      setUploadError(
+        err instanceof Error ? err.message : "Failed to upload master document"
+      );
     } finally {
       setUploading(false);
     }
@@ -183,11 +195,30 @@ export default function AdminPage() {
                   <DialogDescription>Upload a gold-standard policy document to map against standards</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
-                  <div className="flex h-32 flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30">
-                    <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Drag & drop or click to upload</p>
-                    <p className="text-xs text-muted-foreground">PDF, DOCX up to 50 MB</p>
-                  </div>
+                    {uploadError && (
+                      <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                        {uploadError}
+                      </div>
+                    )}
+                    <div>
+                      <label className="mb-1 block text-sm font-medium">File</label>
+                      <Input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.txt,.rtf"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] || null;
+                          setUploadFile(file);
+                          if (file && !uploadName.trim()) {
+                            setUploadName(file.name);
+                          }
+                        }}
+                      />
+                      {uploadFile && (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Selected: {uploadFile.name}
+                        </p>
+                      )}
+                    </div>
                   <div>
                     <label className="mb-1 block text-sm font-medium">Document Name</label>
                     <Input placeholder="e.g., Hospital Infection Control Policy v4.0" value={uploadName} onChange={e => setUploadName(e.target.value)} />
@@ -211,7 +242,7 @@ export default function AdminPage() {
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setShowUpload(false)}>Cancel</Button>
-                  <Button onClick={handleUpload} disabled={uploading || !uploadName.trim()}>
+                  <Button onClick={handleUpload} disabled={uploading || !uploadFile}>
                     {uploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Upload & Map
                   </Button>
