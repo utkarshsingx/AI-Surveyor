@@ -145,9 +145,10 @@ model Evidence {
   summary      String   @default("")
   status       String   @default("pending") // pending, classified, mapped, reviewed
 
-  uploadedBy      User              @relation("EvidenceUploader", fields: [uploadedById], references: [id])
-  projectLinks    ProjectEvidence[]
-  evidenceMatches EvidenceMatch[]
+  uploadedBy        User                   @relation("EvidenceUploader", fields: [uploadedById], references: [id])
+  projectLinks      ProjectEvidence[]
+  evidenceMatches   EvidenceMatch[]
+  comparisons       DocumentComparison[]
 }
 
 model ProjectEvidence {
@@ -255,9 +256,10 @@ model MasterDocument {
   category     String   @default("policy")
   status       String   @default("active")
 
-  standard   Standard            @relation(fields: [standardId], references: [id])
-  uploadedBy User                @relation("MasterDocUploader", fields: [uploadedById], references: [id])
-  mappings   MasterDocMapping[]
+  standard    Standard              @relation(fields: [standardId], references: [id])
+  uploadedBy  User                  @relation("MasterDocUploader", fields: [uploadedById], references: [id])
+  mappings    MasterDocMapping[]
+  comparisons DocumentComparison[]
 }
 
 model MasterDocMapping {
@@ -342,6 +344,28 @@ model ActivityLog {
   createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id])
+}
+
+// ============================================
+// DOCUMENT COMPARISON & MATCHING
+// ============================================
+model DocumentComparison {
+  id                  String   @id @default(uuid())
+  userEvidenceId      String
+  masterDocumentId    String
+  matchingPercentage  Float    @default(0)
+  status              String   @default("pending") // pending, processing, completed, failed
+  overallSummary      String   @default("")
+  keyMatches          String   @default("[]") // JSON array
+  gaps                String   @default("[]") // JSON array
+  recommendations     String   @default("[]") // JSON array
+  detailedAnalysis    String   @default("") // Long form analysis
+  createdAt           DateTime @default(now())
+  completedAt         DateTime?
+  processedAt         DateTime?
+
+  userEvidence    Evidence       @relation(fields: [userEvidenceId], references: [id], onDelete: Cascade)
+  masterDocument  MasterDocument @relation(fields: [masterDocumentId], references: [id], onDelete: Cascade)
 }
 
 // ============================================

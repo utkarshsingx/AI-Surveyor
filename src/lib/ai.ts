@@ -3,14 +3,17 @@
  * 
  * Provides a pluggable interface for AI-powered features:
  * - Document analysis & compliance scoring
+ * - Document comparison & matching
  * - Co-pilot chat (RAG-based Q&A)
  * - Report generation
  * 
- * To integrate with a real AI API (OpenAI, Azure, etc.):
- * 1. Set OPENAI_API_KEY in .env
- * 2. Set AI_PROVIDER=openai in .env
- * 3. The mock fallback is used when no API key is configured
+ * Supported providers:
+ * 1. GEMINI: Set GEMINI_API_KEY in .env
+ * 2. OpenAI: Set OPENAI_API_KEY and AI_PROVIDER=openai in .env
+ * 3. Mock: Used as fallback when no API key is configured
  */
+
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export interface AIComplianceResult {
   meId: string;
@@ -36,9 +39,27 @@ export interface AIChatResponse {
   sources: { document_name: string; section: string; relevance: number }[];
 }
 
-const AI_PROVIDER = process.env.AI_PROVIDER || "mock";
+export interface DocumentComparisonResult {
+  matchingPercentage: number;
+  overallSummary: string;
+  keyMatches: string[];
+  gaps: string[];
+  recommendations: string[];
+  detailedAnalysis: string;
+}
+
+const AI_PROVIDER = process.env.AI_PROVIDER || "gemini";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
+
+// Initialize Gemini Client
+const getGeminiClient = () => {
+  if (GEMINI_API_KEY) {
+    return new GoogleGenerativeAI(GEMINI_API_KEY);
+  }
+  return null;
+};
 
 // ============================================
 // COMPLIANCE ASSESSMENT
@@ -203,6 +224,188 @@ function generateMockResult(
       relevanceScore: Math.min(95, matchScore + Math.floor(Math.random() * 10)),
       matchedSections: [`Keyword match in document summary`],
     })),
+  };
+}
+
+// ============================================
+// DOCUMENT COMPARISON & MATCHING
+// ============================================
+export async function compareDocuments(
+  userDocument: { id: string; name: string; content: string; summary: string },
+  masterDocument: { id: string; name: string; content: string; description: string },
+  standard?: { name: string; description: string }
+): Promise<DocumentComparisonResult> {
+  const geminiClient = getGeminiClient();
+  
+  if (geminiClient && GEMINI_API_KEY) {
+    return compareDocumentsGemini(userDocument, masterDocument, standard);
+  } else if (OPENAI_API_KEY) {
+    return compareDocumentsOpenAI(userDocument, masterDocument, standard);
+  }
+  
+  return compareDocumentsMock(userDocument, masterDocument);
+}
+
+async function compareDocumentsGemini(
+  userDocument: { id: string; name: string; content: string; summary: string },
+  masterDocument: { id: string; name: string; content: string; description: string },
+  standard?: { name: string; description: string }
+): Promise<DocumentComparisonResult> {
+  try {
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+    const prompt = `You are a healthcare compliance expert. Compare the following two documents and analyze how well the user-submitted document matches with the master (reference) document from administration.
+
+STANDARD/CONTEXT: ${standard ? `${standard.name} - ${standard.description}` : "Healthcare compliance standard"}
+
+MASTER DOCUMENT (Reference/Admin-provided):
+Name: ${masterDocument.name}
+Description: ${masterDocument.description}
+Content: ${masterDocument.content}
+
+USER DOCUMENT (To be compared):
+Name: ${userDocument.name}
+Summary: ${userDocument.summary}
+Content: ${userDocument.content}
+
+Please provide a detailed analysis in JSON format with the following structure:
+{
+  "matchingPercentage": 0-100,
+  "overallSummary": "One paragraph summary of how well the documents match",
+  "keyMatches": ["List of specific sections or requirements that are well-covered"],
+  "gaps": ["List of sections or requirements that are missing or insufficient"],
+  "recommendations": ["List of actionable recommendations to improve alignment"],
+  "detailedAnalysis": "A detailed paragraph-style analysis of the comparison, highlighting strengths and weaknesses"
+}
+
+Be specific and reference actual content from both documents. Focus on compliance relevance and coverage of required elements.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const responseText = response.text();
+
+    // Extract JSON from response
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Failed to parse AI response");
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    return {
+      matchingPercentage: Math.min(100, Math.max(0, parsed.matchingPercentage || 0)),
+      overallSummary: parsed.overallSummary || "",
+      keyMatches: parsed.keyMatches || [],
+      gaps: parsed.gaps || [],
+      recommendations: parsed.recommendations || [],
+      detailedAnalysis: parsed.detailedAnalysis || "",
+    };
+  } catch (error) {
+    console.error("Gemini document comparison error:", error);
+    // Fallback to mock if Gemini fails
+    return compareDocumentsMock(userDocument, masterDocument);
+  }
+}
+
+async function compareDocumentsOpenAI(
+  userDocument: { id: string; name: string; content: string; summary: string },
+  masterDocument: { id: string; name: string; content: string; description: string },
+  standard?: { name: string; description: string }
+): Promise<DocumentComparisonResult> {
+  try {
+    const prompt = `You are a healthcare compliance expert. Compare the following two documents and analyze how well the user-submitted document matches with the master (reference) document from administration.
+
+STANDARD/CONTEXT: ${standard ? `${standard.name} - ${standard.description}` : "Healthcare compliance standard"}
+
+MASTER DOCUMENT (Reference/Admin-provided):
+Name: ${masterDocument.name}
+Description: ${masterDocument.description}
+Content: ${masterDocument.content}
+
+USER DOCUMENT (To be compared):
+Name: ${userDocument.name}
+Summary: ${userDocument.summary}
+Content: ${userDocument.content}
+
+Please provide a detailed analysis in JSON format with the following structure:
+{
+  "matchingPercentage": 0-100,
+  "overallSummary": "One paragraph summary of how well the documents match",
+  "keyMatches": ["List of specific sections or requirements that are well-covered"],
+  "gaps": ["List of sections or requirements that are missing or insufficient"],
+  "recommendations": ["List of actionable recommendations to improve alignment"],
+  "detailedAnalysis": "A detailed paragraph-style analysis of the comparison, highlighting strengths and weaknesses"
+}`;
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+      }),
+    });
+
+    const data = await response.json();
+    const parsed = JSON.parse(data.choices[0].message.content);
+
+    return {
+      matchingPercentage: Math.min(100, Math.max(0, parsed.matchingPercentage || 0)),
+      overallSummary: parsed.overallSummary || "",
+      keyMatches: parsed.keyMatches || [],
+      gaps: parsed.gaps || [],
+      recommendations: parsed.recommendations || [],
+      detailedAnalysis: parsed.detailedAnalysis || "",
+    };
+  } catch (error) {
+    console.error("OpenAI document comparison error:", error);
+    return compareDocumentsMock(userDocument, masterDocument);
+  }
+}
+
+function compareDocumentsMock(
+  userDocument: { id: string; name: string; content: string; summary: string },
+  masterDocument: { id: string; name: string; content: string; description: string }
+): DocumentComparisonResult {
+  // Simple mock comparison based on content length and keyword matching
+  const userWords = userDocument.content.toLowerCase().split(/\s+/);
+  const masterWords = masterDocument.content.toLowerCase().split(/\s+/);
+  
+  // Simple overlap scoring
+  const matches = userWords.filter(w => masterWords.includes(w)).length;
+  const matchingPercentage = Math.min(100, Math.round((matches / Math.max(userWords.length, masterWords.length)) * 100 + Math.random() * 20));
+
+  return {
+    matchingPercentage,
+    overallSummary: matchingPercentage > 75 
+      ? `The user document "${userDocument.name}" aligns well with the master document "${masterDocument.name}". Most required sections and key requirements are covered.`
+      : matchingPercentage > 50
+      ? `The user document shows moderate alignment with the master document. Some key sections are covered, but there are notable gaps in coverage and detail.`
+      : `The user document has limited alignment with the master document. Significant gaps exist and substantial updates are needed for compliance.`,
+    keyMatches: [
+      "Document structure and basic framework",
+      "Key compliance requirements",
+      `Specific procedures (${matchingPercentage > 70 ? "comprehensive" : "partial"})`,
+    ],
+    gaps: matchingPercentage < 80 ? [
+      "Detailed operational procedures",
+      "Monitoring and audit mechanisms",
+      "Training and competency requirements",
+      "Documentation and record-keeping requirements",
+    ] : ["Minor formatting inconsistencies"],
+    recommendations: [
+      "Review master document requirements section by section",
+      matchingPercentage < 70 ? "Incorporate missing compliance elements" : "Maintain and review annually",
+      "Ensure all staff training on updated procedures",
+      "Implement quarterly audit mechanisms",
+    ],
+    detailedAnalysis: `Upon detailed review, the user document covers approximately ${matchingPercentage}% of the requirements specified in the master document. ${matchingPercentage > 75 ? "The document demonstrates strong compliance alignment with well-documented procedures and clear accountability structures." : matchingPercentage > 50 ? "While the document addresses core requirements, it lacks depth in supporting procedures and monitoring mechanisms." : "Significant revision is required to align with established standards and administrative guidelines."} Key strengths include clear formatting and basic framework. Areas for improvement include comprehensive procedure documentation, audit trail mechanisms, and staff competency requirements.`,
   };
 }
 
