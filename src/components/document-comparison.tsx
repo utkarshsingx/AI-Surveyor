@@ -17,6 +17,19 @@ interface ComparisonResult {
   gaps: string[];
   recommendations: string[];
   detailedAnalysis: string;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    isEstimate: boolean;
+    provider: "openai" | "gemini" | "heuristic" | "estimate";
+    model?: string;
+    inputTokens?: {
+      userDocumentTokens: number;
+      masterDocumentTokens: number;
+      standardTokens: number;
+    };
+  };
   createdAt: string;
   completedAt: string | null;
   userEvidence: {
@@ -107,6 +120,8 @@ export function DocumentComparison({
       return <AlertCircle className="w-5 h-5 text-yellow-600" />;
     return <XCircle className="w-5 h-5 text-red-600" />;
   };
+
+  const formatNumber = (value: number) => value.toLocaleString();
 
   return (
     <div className="space-y-6">
@@ -223,6 +238,55 @@ export function DocumentComparison({
               <h4 className="font-semibold mb-2">Overall Summary</h4>
               <p className="text-gray-700">{result.overallSummary}</p>
             </div>
+
+            {/* Usage Meter */}
+            {result.usage && (
+              <div className="mb-6">
+                <h4 className="font-semibold mb-2">Usage Meter</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-md border bg-slate-50">
+                    <p className="text-sm text-gray-500">Total Tokens</p>
+                    <p className="text-2xl font-bold">
+                      {formatNumber(result.usage.totalTokens)}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-md border bg-slate-50">
+                    <p className="text-sm text-gray-500">Prompt Tokens</p>
+                    <p className="text-2xl font-bold">
+                      {formatNumber(result.usage.promptTokens)}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-md border bg-slate-50">
+                    <p className="text-sm text-gray-500">Completion Tokens</p>
+                    <p className="text-2xl font-bold">
+                      {formatNumber(result.usage.completionTokens)}
+                    </p>
+                  </div>
+                </div>
+                {result.usage.inputTokens && (
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                    <div>
+                      Evidence tokens: {formatNumber(result.usage.inputTokens.userDocumentTokens)}
+                    </div>
+                    <div>
+                      Master tokens: {formatNumber(result.usage.inputTokens.masterDocumentTokens)}
+                    </div>
+                    <div>
+                      Standard tokens: {formatNumber(result.usage.inputTokens.standardTokens)}
+                    </div>
+                  </div>
+                )}
+                <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
+                  <span>Provider: {result.usage.provider}</span>
+                  {result.usage.model && <span>Model: {result.usage.model}</span>}
+                  {result.usage.isEstimate && (
+                    <Badge variant="outline" className="bg-white">
+                      Estimated
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Key Matches */}
             {result.keyMatches.length > 0 && (

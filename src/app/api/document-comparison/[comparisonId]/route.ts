@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { estimateDocumentComparisonUsage } from "@/lib/ai";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 /**
  * GET /api/document-comparison/[comparisonId]
@@ -13,6 +16,16 @@ export async function GET(
   try {
     const { comparisonId } = params;
 
+    const readDocumentContent = (filePath: string, fallback: string) => {
+      if (!filePath) return fallback;
+      try {
+        const fullPath = join(process.cwd(), "public", filePath);
+        return readFileSync(fullPath, "utf-8");
+      } catch {
+        return fallback;
+      }
+    };
+
     const comparison = await prisma.documentComparison.findUnique({
       where: { id: comparisonId },
       include: {
@@ -22,6 +35,8 @@ export async function GET(
             documentName: true,
             type: true,
             department: true,
+            filePath: true,
+            summary: true,
           },
         },
         masterDocument: {
@@ -30,6 +45,13 @@ export async function GET(
             name: true,
             category: true,
             description: true,
+            filePath: true,
+            standard: {
+              select: {
+                standardName: true,
+                description: true,
+              },
+            },
           },
         },
       },
@@ -42,6 +64,37 @@ export async function GET(
       );
     }
 
+    const userContent = readDocumentContent(
+      comparison.userEvidence.filePath,
+      comparison.userEvidence.summary ||
+        `Document: ${comparison.userEvidence.documentName}`
+    );
+    const masterContent = readDocumentContent(
+      comparison.masterDocument.filePath,
+      comparison.masterDocument.description ||
+        `Document: ${comparison.masterDocument.name}`
+    );
+    const usage = estimateDocumentComparisonUsage(
+      {
+        id: comparison.userEvidence.id,
+        name: comparison.userEvidence.documentName,
+        content: userContent,
+        summary: comparison.userEvidence.summary,
+      },
+      {
+        id: comparison.masterDocument.id,
+        name: comparison.masterDocument.name,
+        content: masterContent,
+        description: comparison.masterDocument.description,
+      },
+      comparison.masterDocument.standard
+        ? {
+            name: comparison.masterDocument.standard.standardName,
+            description: comparison.masterDocument.standard.description,
+          }
+        : undefined
+    );
+
     return NextResponse.json({
       id: comparison.id,
       userEvidenceId: comparison.userEvidenceId,
@@ -53,6 +106,7 @@ export async function GET(
       gaps: JSON.parse(comparison.gaps),
       recommendations: JSON.parse(comparison.recommendations),
       detailedAnalysis: comparison.detailedAnalysis,
+      usage,
       createdAt: comparison.createdAt,
       completedAt: comparison.completedAt,
       userEvidence: comparison.userEvidence,

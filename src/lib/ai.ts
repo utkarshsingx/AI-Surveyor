@@ -46,6 +46,23 @@ export interface DocumentComparisonResult {
   gaps: string[];
   recommendations: string[];
   detailedAnalysis: string;
+  usage: TokenUsage;
+}
+
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  isEstimate: boolean;
+  provider: "openai" | "gemini" | "heuristic" | "estimate";
+  model?: string;
+  inputTokens?: InputTokenBreakdown;
+}
+
+interface InputTokenBreakdown {
+  userDocumentTokens: number;
+  masterDocumentTokens: number;
+  standardTokens: number;
 }
 
 const AI_PROVIDER = process.env.AI_PROVIDER || "gemini";
@@ -243,7 +260,7 @@ export async function compareDocuments(
     return compareDocumentsOpenAI(userDocument, masterDocument, standard);
   }
   
-  return compareDocumentsMock(userDocument, masterDocument);
+  return compareDocumentsHeuristic(userDocument, masterDocument, standard);
 }
 
 async function compareDocumentsGemini(
@@ -284,6 +301,18 @@ Be specific and reference actual content from both documents. Focus on complianc
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const responseText = response.text();
+    const inputTokens = estimateInputTokens(userDocument, masterDocument, standard);
+    const usageMetadata = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }).usageMetadata;
+    const usage = usageMetadata
+      ? buildUsageFromActual(
+          usageMetadata.promptTokenCount || 0,
+          usageMetadata.candidatesTokenCount || 0,
+          usageMetadata.totalTokenCount,
+          "gemini",
+          "gemini-pro",
+          inputTokens
+        )
+      : buildUsageFromEstimate(prompt, responseText, "gemini", "gemini-pro", inputTokens);
 
     // Extract JSON from response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -300,11 +329,12 @@ Be specific and reference actual content from both documents. Focus on complianc
       gaps: parsed.gaps || [],
       recommendations: parsed.recommendations || [],
       detailedAnalysis: parsed.detailedAnalysis || "",
+      usage,
     };
   } catch (error) {
     console.error("Gemini document comparison error:", error);
     // Fallback to mock if Gemini fails
-    return compareDocumentsMock(userDocument, masterDocument);
+    return compareDocumentsHeuristic(userDocument, masterDocument, standard);
   }
 }
 
@@ -354,6 +384,17 @@ Please provide a detailed analysis in JSON format with the following structure:
 
     const data = await response.json();
     const parsed = JSON.parse(data.choices[0].message.content);
+    const inputTokens = estimateInputTokens(userDocument, masterDocument, standard);
+    const usage = data.usage
+      ? buildUsageFromActual(
+          data.usage.prompt_tokens || 0,
+          data.usage.completion_tokens || 0,
+          data.usage.total_tokens,
+          "openai",
+          OPENAI_MODEL,
+          inputTokens
+        )
+      : buildUsageFromEstimate(prompt, data.choices[0].message.content, "openai", OPENAI_MODEL, inputTokens);
 
     return {
       matchingPercentage: Math.min(100, Math.max(0, parsed.matchingPercentage || 0)),
@@ -362,52 +403,331 @@ Please provide a detailed analysis in JSON format with the following structure:
       gaps: parsed.gaps || [],
       recommendations: parsed.recommendations || [],
       detailedAnalysis: parsed.detailedAnalysis || "",
+      usage,
     };
   } catch (error) {
     console.error("OpenAI document comparison error:", error);
-    return compareDocumentsMock(userDocument, masterDocument);
+    return compareDocumentsHeuristic(userDocument, masterDocument, standard);
   }
 }
 
-function compareDocumentsMock(
+export function estimateDocumentComparisonUsage(
   userDocument: { id: string; name: string; content: string; summary: string },
-  masterDocument: { id: string; name: string; content: string; description: string }
+  masterDocument: { id: string; name: string; content: string; description: string },
+  standard?: { name: string; description: string }
+): TokenUsage {
+  const inputTokens = estimateInputTokens(userDocument, masterDocument, standard);
+  const promptTokens =
+    inputTokens.userDocumentTokens +
+    inputTokens.masterDocumentTokens +
+    inputTokens.standardTokens;
+
+  return {
+    promptTokens,
+    completionTokens: 0,
+    totalTokens: promptTokens,
+    isEstimate: true,
+    provider: "estimate",
+    inputTokens,
+  };
+}
+
+function compareDocumentsHeuristic(
+  userDocument: { id: string; name: string; content: string; summary: string },
+  masterDocument: { id: string; name: string; content: string; description: string },
+  standard?: { name: string; description: string }
 ): DocumentComparisonResult {
-  // Simple mock comparison based on content length and keyword matching
-  const userWords = userDocument.content.toLowerCase().split(/\s+/);
-  const masterWords = masterDocument.content.toLowerCase().split(/\s+/);
-  
-  // Simple overlap scoring
-  const matches = userWords.filter(w => masterWords.includes(w)).length;
-  const matchingPercentage = Math.min(100, Math.round((matches / Math.max(userWords.length, masterWords.length)) * 100 + Math.random() * 20));
+  const userText = buildComparisonText(userDocument.content, userDocument.summary);
+  const masterText = buildComparisonText(
+    masterDocument.content,
+    masterDocument.description
+  );
+
+  const userTokens = tokenize(userText);
+  const masterTokens = tokenize(masterText);
+
+  const masterTopTerms = getTopTerms(masterTokens, 20);
+  const termCoverage =
+    masterTopTerms.length === 0
+      ? 0
+      : Math.round(
+          (masterTopTerms.filter((t) => userTokens.includes(t)).length /
+            masterTopTerms.length) *
+            100
+        );
+
+  const cosineScore = Math.round(
+    cosineSimilarity(userTokens, masterTokens) * 100
+  );
+
+  const matchingPercentage = clamp(
+    Math.round(termCoverage * 0.6 + cosineScore * 0.4),
+    0,
+    100
+  );
+
+  const requirementSentences = extractRequirementSentences(masterText, 8);
+  const { keyMatches, gaps } = classifyRequirementCoverage(
+    requirementSentences,
+    userTokens
+  );
+
+  const recommendations = buildRecommendations(gaps);
+
+  const summaryTone =
+    matchingPercentage >= 80
+      ? "aligns strongly"
+      : matchingPercentage >= 50
+      ? "partially aligns"
+      : "has limited alignment";
 
   return {
     matchingPercentage,
-    overallSummary: matchingPercentage > 75 
-      ? `The user document "${userDocument.name}" aligns well with the master document "${masterDocument.name}". Most required sections and key requirements are covered.`
-      : matchingPercentage > 50
-      ? `The user document shows moderate alignment with the master document. Some key sections are covered, but there are notable gaps in coverage and detail.`
-      : `The user document has limited alignment with the master document. Significant gaps exist and substantial updates are needed for compliance.`,
-    keyMatches: [
-      "Document structure and basic framework",
-      "Key compliance requirements",
-      `Specific procedures (${matchingPercentage > 70 ? "comprehensive" : "partial"})`,
-    ],
-    gaps: matchingPercentage < 80 ? [
-      "Detailed operational procedures",
-      "Monitoring and audit mechanisms",
-      "Training and competency requirements",
-      "Documentation and record-keeping requirements",
-    ] : ["Minor formatting inconsistencies"],
-    recommendations: [
-      "Review master document requirements section by section",
-      matchingPercentage < 70 ? "Incorporate missing compliance elements" : "Maintain and review annually",
-      "Ensure all staff training on updated procedures",
-      "Implement quarterly audit mechanisms",
-    ],
-    detailedAnalysis: `Upon detailed review, the user document covers approximately ${matchingPercentage}% of the requirements specified in the master document. ${matchingPercentage > 75 ? "The document demonstrates strong compliance alignment with well-documented procedures and clear accountability structures." : matchingPercentage > 50 ? "While the document addresses core requirements, it lacks depth in supporting procedures and monitoring mechanisms." : "Significant revision is required to align with established standards and administrative guidelines."} Key strengths include clear formatting and basic framework. Areas for improvement include comprehensive procedure documentation, audit trail mechanisms, and staff competency requirements.`,
+    overallSummary: `The user document "${userDocument.name}" ${summaryTone} with the master document "${masterDocument.name}" based on requirement coverage and terminology overlap.`,
+    keyMatches,
+    gaps,
+    recommendations,
+    detailedAnalysis: `Scoring is based on coverage of key master terms (${termCoverage}%) and overall semantic overlap (${cosineScore}%). Requirement sentences in the master document were checked against the user document for evidence of coverage. Focus updates on any gaps to improve alignment.`,
+    usage: {
+      ...estimateDocumentComparisonUsage(userDocument, masterDocument, standard),
+      provider: "heuristic",
+    },
   };
 }
+
+function buildComparisonText(primary: string, secondary?: string): string {
+  const combined = `${primary || ""}\n${secondary || ""}`.trim();
+  return combined.length > 0 ? combined : "";
+}
+
+function tokenize(text: string): string[] {
+  if (!text) return [];
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 2 && !STOPWORDS.has(token));
+}
+
+function getTopTerms(tokens: string[], limit: number): string[] {
+  const freq = new Map<string, number>();
+  for (const token of tokens) {
+    freq.set(token, (freq.get(token) || 0) + 1);
+  }
+
+  return Array.from(freq.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([term]) => term);
+}
+
+function cosineSimilarity(aTokens: string[], bTokens: string[]): number {
+  if (aTokens.length === 0 || bTokens.length === 0) return 0;
+
+  const freqA = new Map<string, number>();
+  const freqB = new Map<string, number>();
+
+  for (const token of aTokens) {
+    freqA.set(token, (freqA.get(token) || 0) + 1);
+  }
+  for (const token of bTokens) {
+    freqB.set(token, (freqB.get(token) || 0) + 1);
+  }
+
+  let dot = 0;
+  let magA = 0;
+  let magB = 0;
+
+  for (const [token, countA] of Array.from(freqA.entries())) {
+    const countB = freqB.get(token) || 0;
+    dot += countA * countB;
+    magA += countA * countA;
+  }
+  for (const countB of Array.from(freqB.values())) {
+    magB += countB * countB;
+  }
+
+  if (magA === 0 || magB === 0) return 0;
+  return dot / (Math.sqrt(magA) * Math.sqrt(magB));
+}
+
+function extractRequirementSentences(text: string, limit: number): string[] {
+  if (!text) return [];
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const requirement = sentences.filter((s) =>
+    /\b(must|shall|required|should|ensure|document|procedure|policy)\b/i.test(s)
+  );
+
+  const selected = requirement.length > 0 ? requirement : sentences;
+  return selected.slice(0, limit);
+}
+
+function classifyRequirementCoverage(
+  requirementSentences: string[],
+  userTokens: string[]
+): { keyMatches: string[]; gaps: string[] } {
+  const keyMatches: string[] = [];
+  const gaps: string[] = [];
+
+  for (const sentence of requirementSentences) {
+    const sentenceTokens = tokenize(sentence);
+    const hits = sentenceTokens.filter((t) => userTokens.includes(t));
+    if (sentenceTokens.length === 0) continue;
+
+    const coverageRatio = hits.length / sentenceTokens.length;
+    if (coverageRatio >= 0.35) {
+      keyMatches.push(sentence);
+    } else {
+      gaps.push(sentence);
+    }
+  }
+
+  return {
+    keyMatches: keyMatches.slice(0, 6),
+    gaps: gaps.slice(0, 6),
+  };
+}
+
+function buildRecommendations(gaps: string[]): string[] {
+  if (gaps.length === 0) {
+    return [
+      "Maintain current documentation and review annually for updates.",
+    ];
+  }
+
+  return gaps.slice(0, 5).map((gap, index) => {
+    const label = gap.length > 80 ? `${gap.slice(0, 77)}...` : gap;
+    return `Address gap ${index + 1}: ${label}`;
+  });
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function estimateTokensFromText(text: string): number {
+  if (!text) return 0;
+  return Math.ceil(text.length / 4);
+}
+
+function estimateInputTokens(
+  userDocument: { content: string; summary: string },
+  masterDocument: { content: string; description: string },
+  standard?: { name: string; description: string }
+): InputTokenBreakdown {
+  const userText = buildComparisonText(userDocument.content, userDocument.summary);
+  const masterText = buildComparisonText(
+    masterDocument.content,
+    masterDocument.description
+  );
+  const standardText = standard
+    ? buildComparisonText(standard.name, standard.description)
+    : "";
+
+  return {
+    userDocumentTokens: estimateTokensFromText(userText),
+    masterDocumentTokens: estimateTokensFromText(masterText),
+    standardTokens: estimateTokensFromText(standardText),
+  };
+}
+
+function buildUsageFromEstimate(
+  prompt: string,
+  responseText: string,
+  provider: TokenUsage["provider"],
+  model: string,
+  inputTokens?: InputTokenBreakdown
+): TokenUsage {
+  const promptTokens = estimateTokensFromText(prompt);
+  const completionTokens = estimateTokensFromText(responseText);
+
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens: promptTokens + completionTokens,
+    isEstimate: true,
+    provider,
+    model,
+    inputTokens,
+  };
+}
+
+function buildUsageFromActual(
+  promptTokens: number,
+  completionTokens: number,
+  totalTokens: number | undefined,
+  provider: TokenUsage["provider"],
+  model: string,
+  inputTokens?: InputTokenBreakdown
+): TokenUsage {
+  const total = totalTokens ?? promptTokens + completionTokens;
+
+  return {
+    promptTokens,
+    completionTokens,
+    totalTokens: total,
+    isEstimate: false,
+    provider,
+    model,
+    inputTokens,
+  };
+}
+
+const STOPWORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "that",
+  "this",
+  "from",
+  "into",
+  "such",
+  "their",
+  "they",
+  "are",
+  "was",
+  "were",
+  "been",
+  "being",
+  "will",
+  "shall",
+  "must",
+  "should",
+  "may",
+  "can",
+  "has",
+  "have",
+  "had",
+  "not",
+  "but",
+  "you",
+  "your",
+  "our",
+  "all",
+  "any",
+  "each",
+  "per",
+  "use",
+  "used",
+  "using",
+  "also",
+  "more",
+  "than",
+  "then",
+  "when",
+  "where",
+  "which",
+  "what",
+  "who",
+  "whom",
+  "why",
+  "how",
+]);
 
 // ============================================
 // CO-PILOT CHAT

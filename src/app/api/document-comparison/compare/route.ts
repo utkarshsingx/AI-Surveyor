@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { compareDocuments } from "@/lib/ai";
+import { compareDocuments, estimateDocumentComparisonUsage } from "@/lib/ai";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -53,6 +53,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const readDocumentContent = (filePath: string, fallback: string) => {
+      if (!filePath) return fallback;
+      try {
+        const fullPath = join(process.cwd(), "public", filePath);
+        return readFileSync(fullPath, "utf-8");
+      } catch {
+        return fallback;
+      }
+    };
+
     // Check for existing comparison
     let comparison = await prisma.documentComparison.findFirst({
       where: {
@@ -63,6 +73,35 @@ export async function POST(request: NextRequest) {
 
     // If already exists and completed, return it
     if (comparison && comparison.status === "completed") {
+      const userContent = readDocumentContent(
+        userEvidence.filePath,
+        userEvidence.summary || `Document: ${userEvidence.documentName}`
+      );
+      const masterContent = readDocumentContent(
+        masterDocument.filePath,
+        masterDocument.description || `Document: ${masterDocument.name}`
+      );
+      const usage = estimateDocumentComparisonUsage(
+        {
+          id: userEvidence.id,
+          name: userEvidence.documentName,
+          content: userContent,
+          summary: userEvidence.summary,
+        },
+        {
+          id: masterDocument.id,
+          name: masterDocument.name,
+          content: masterContent,
+          description: masterDocument.description,
+        },
+        masterDocument.standard
+          ? {
+              name: masterDocument.standard.standardName,
+              description: masterDocument.standard.description,
+            }
+          : undefined
+      );
+
       return NextResponse.json({
         id: comparison.id,
         userEvidenceId: comparison.userEvidenceId,
@@ -74,6 +113,7 @@ export async function POST(request: NextRequest) {
         gaps: JSON.parse(comparison.gaps),
         recommendations: JSON.parse(comparison.recommendations),
         detailedAnalysis: comparison.detailedAnalysis,
+        usage,
         createdAt: comparison.createdAt,
         completedAt: comparison.completedAt,
       });
@@ -103,23 +143,15 @@ export async function POST(request: NextRequest) {
     let userContent = "";
     let masterContent = "";
 
-    try {
-      // Try to read user evidence file
-      const userFilePath = join(process.cwd(), "public", userEvidence.filePath);
-      userContent = readFileSync(userFilePath, "utf-8");
-    } catch {
-      // If file doesn't exist, use summary as fallback
-      userContent = userEvidence.summary || `Document: ${userEvidence.documentName}`;
-    }
+    userContent = readDocumentContent(
+      userEvidence.filePath,
+      userEvidence.summary || `Document: ${userEvidence.documentName}`
+    );
 
-    try {
-      // Try to read master document file
-      const masterFilePath = join(process.cwd(), "public", masterDocument.filePath);
-      masterContent = readFileSync(masterFilePath, "utf-8");
-    } catch {
-      // If file doesn't exist, use description as fallback
-      masterContent = masterDocument.description || `Document: ${masterDocument.name}`;
-    }
+    masterContent = readDocumentContent(
+      masterDocument.filePath,
+      masterDocument.description || `Document: ${masterDocument.name}`
+    );
 
     // Call AI comparison function
     const comparisonResult = await compareDocuments(
@@ -169,6 +201,7 @@ export async function POST(request: NextRequest) {
       gaps: JSON.parse(updatedComparison.gaps),
       recommendations: JSON.parse(updatedComparison.recommendations),
       detailedAnalysis: updatedComparison.detailedAnalysis,
+      usage: comparisonResult.usage,
       createdAt: updatedComparison.createdAt,
       completedAt: updatedComparison.completedAt,
     });

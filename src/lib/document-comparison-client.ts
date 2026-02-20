@@ -16,6 +16,19 @@ export interface ComparisonResult {
   gaps: string[];
   recommendations: string[];
   detailedAnalysis: string;
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    isEstimate: boolean;
+    provider: "openai" | "gemini" | "heuristic" | "estimate";
+    model?: string;
+    inputTokens?: {
+      userDocumentTokens: number;
+      masterDocumentTokens: number;
+      standardTokens: number;
+    };
+  };
   createdAt: string;
   completedAt: string | null;
   userEvidence?: {
