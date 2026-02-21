@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { readDocumentContent } from "@/lib/document-reader";
 import { analyzePolicyCompliance } from "@/lib/ai";
 import { addReport } from "@/lib/document-assessment-store";
-import { mockPolicies, getCreatedPolicies } from "@/data/mock";
+import { mockPolicies } from "@/data/mock";
+import { getCreatedPolicies } from "@/lib/policy-store";
 import type { MockPolicy } from "@/data/mock/policies";
 import { randomUUID } from "crypto";
 

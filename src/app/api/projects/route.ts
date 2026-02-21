@@ -9,7 +9,7 @@ export async function GET() {
 // POST /api/projects — mock only (no database); returns success with stub project
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
-  const { name, facilityId, accreditationId, standardVersion, scope, selectedChapters, departments, deadline, teamMembers } = body;
+  const { name, facilityId, deadline } = body;
   if (!name || !facilityId || !deadline) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }

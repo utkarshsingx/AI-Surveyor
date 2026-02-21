@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Upload,
   FileText,
@@ -73,14 +73,14 @@ export default function AdminPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const loadDocs = async () => {
+  const loadDocs = useCallback(async () => {
     try {
       const data = await fetchMasterDocuments(searchQuery || undefined);
       setDocs(data);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [searchQuery]);
 
   // Re-fetch docs when search changes
   useEffect(() => {
@@ -88,7 +88,7 @@ export default function AdminPage() {
       const timer = setTimeout(loadDocs, 300);
       return () => clearTimeout(timer);
     }
-  }, [searchQuery]);
+  }, [searchQuery, loading, loadDocs]);
 
   const handleUpload = async () => {
     if (!uploadFile) {

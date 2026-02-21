@@ -833,6 +833,7 @@ async function analyzePolicyComplianceOpenAI(
 
 function normalizePolicyReport(
   parsed: Record<string, unknown>,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API consistency
   policies: { id: string; name: string }[]
 ): Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt"> {
   const perPolicyScores = (parsed.perPolicyScores as PerPolicyScore[] || []).map((p) => ({
