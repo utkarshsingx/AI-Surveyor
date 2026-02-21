@@ -4,6 +4,8 @@ import { compareDocuments, estimateDocumentComparisonUsage } from "@/lib/ai";
 import { readFileSync } from "fs";
 import { join } from "path";
 
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/document-comparison/compare
  * 

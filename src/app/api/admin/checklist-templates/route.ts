@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mockChecklistTemplate } from "@/data/mock";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/admin/checklist-templates — uses mock data (no database)
 export async function GET() {
   return NextResponse.json(mockChecklistTemplate);

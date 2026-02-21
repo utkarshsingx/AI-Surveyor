@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/assessments/[id]/results — get compliance scores from an assessment
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   try {

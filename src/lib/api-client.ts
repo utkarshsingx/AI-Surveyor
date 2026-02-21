@@ -1,6 +1,7 @@
 /**
  * Frontend API Client
  * Typed fetch wrapper for all backend endpoints
+ * Uses NEXT_PUBLIC_APP_URL in production so API calls hit the same origin when deployed.
  */
 
 import type {
@@ -21,8 +22,17 @@ import type {
   Policy,
 } from "@/types";
 
+function getApiBase(): string {
+  if (typeof window !== "undefined") {
+    return process.env.NEXT_PUBLIC_APP_URL ?? "";
+  }
+  return process.env.NEXT_PUBLIC_APP_URL ?? "";
+}
+
 async function fetcher<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
+  const base = getApiBase();
+  const fullUrl = base ? `${base.replace(/\/$/, "")}${url}` : url;
+  const res = await fetch(fullUrl, {
     headers: { "Content-Type": "application/json", ...options?.headers },
     ...options,
   });

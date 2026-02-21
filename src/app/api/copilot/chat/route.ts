@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { chatWithCopilot } from "@/lib/ai";
 
+export const dynamic = "force-dynamic";
+
 // POST /api/copilot/chat — send a message to the AI co-pilot
 export async function POST(request: NextRequest) {
   try {

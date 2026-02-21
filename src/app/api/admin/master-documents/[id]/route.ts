@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 // DELETE /api/admin/master-documents/[id]
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   try {

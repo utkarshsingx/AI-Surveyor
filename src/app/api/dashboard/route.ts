@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mockDashboard } from "@/data/mock";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/dashboard — uses mock data (no database)
 export async function GET(req: NextRequest) {
   const facilityId = req.nextUrl.searchParams.get("facilityId");

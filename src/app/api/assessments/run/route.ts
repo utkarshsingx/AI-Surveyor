@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { analyzeCompliance } from "@/lib/ai";
 
+export const dynamic = "force-dynamic";
+
 // POST /api/assessments/run — start an AI assessment
 export async function POST(request: NextRequest) {
   try {
