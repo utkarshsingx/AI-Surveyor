@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error("Copilot history error:", error);
-    return NextResponse.json({ error: "Failed to load history" }, { status: 500 });
+    console.warn("Copilot history error (e.g. DB unavailable):", error);
+    return NextResponse.json({ conversationId: null, messages: [] });
   }
 }

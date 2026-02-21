@@ -677,6 +677,221 @@ function buildUsageFromActual(
   };
 }
 
+// ============================================
+// POLICY vs DOCUMENT SELF-ASSESSMENT (multi-policy scoring)
+// ============================================
+export interface PolicyModuleBreakdown {
+  module: string;
+  submodule?: string;
+  score: number;
+  notes: string;
+}
+
+export interface PerPolicyScore {
+  policyId: string;
+  policyName: string;
+  score: number;
+  moduleBreakdown: PolicyModuleBreakdown[];
+  goodPoints: string[];
+  badPoints: string[];
+  improvements: string[];
+}
+
+export interface PolicyComplianceReport {
+  reportId: string;
+  documentName: string;
+  analyzedAt: string;
+  perPolicyScores: PerPolicyScore[];
+  combinedScore: number;
+  overallGoodPoints: string[];
+  overallBadPoints: string[];
+  overallImprovements: string[];
+  aiSummary: string;
+}
+
+export async function analyzePolicyCompliance(
+  userDocument: { name: string; content: string },
+  policies: { id: string; name: string; description: string; category: string; content: string }[]
+): Promise<Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt">> {
+  if (policies.length === 0) {
+    return {
+      perPolicyScores: [],
+      combinedScore: 0,
+      overallGoodPoints: [],
+      overallBadPoints: [],
+      overallImprovements: [],
+      aiSummary: "No policies selected for comparison.",
+    };
+  }
+  const geminiClient = getGeminiClient();
+  if (geminiClient && GEMINI_API_KEY) {
+    return analyzePolicyComplianceGemini(userDocument, policies);
+  }
+  if (OPENAI_API_KEY) {
+    return analyzePolicyComplianceOpenAI(userDocument, policies);
+  }
+  return analyzePolicyComplianceMock(userDocument, policies);
+}
+
+function buildPolicyCompliancePrompt(
+  userDocument: { name: string; content: string },
+  policies: { id: string; name: string; description: string; category: string; content: string }[]
+): string {
+  const policiesBlock = policies
+    .map(
+      (p) =>
+        `--- POLICY: ${p.name} (ID: ${p.id}, Category: ${p.category}) ---\nDescription: ${p.description}\nContent:\n${(p.content || "").slice(0, 15000)}\n`
+    )
+    .join("\n");
+
+  return `You are an expert healthcare accreditation auditor. Analyze the following SELF-ASSESSMENT DOCUMENT against each of the given STANDARD POLICIES.
+
+SELF-ASSESSMENT DOCUMENT (uploaded by facility):
+Name: ${userDocument.name}
+Content:
+${userDocument.content.slice(0, 25000)}
+
+STANDARD POLICIES (reference documents to map against):
+${policiesBlock}
+
+For EACH policy, you must:
+1. Go through the policy document module by module and submodule (sections, clauses, requirements).
+2. Compare the self-assessment document content against that policy and assign a score 0-100 for that policy.
+3. List specific good points (what aligns well), bad points (gaps/non-compliance), and scope for improvement.
+4. Provide a brief module-level breakdown: for each logical module/section in the policy, give a score and short notes.
+
+Then provide:
+- A COMBINED score (0-100) across all selected policies (weighted average or your judgment).
+- Overall good points, bad points, and improvements across all policies.
+- A concise AI SUMMARY (2-4 paragraphs) for leadership.
+
+Respond with ONLY valid JSON in this exact structure (no markdown, no extra text):
+{
+  "perPolicyScores": [
+    {
+      "policyId": "<id>",
+      "policyName": "<name>",
+      "score": 0-100,
+      "moduleBreakdown": [
+        { "module": "Section name", "submodule": "Subsection if any", "score": 0-100, "notes": "Brief note" }
+      ],
+      "goodPoints": ["point1", "point2"],
+      "badPoints": ["point1", "point2"],
+      "improvements": ["action1", "action2"]
+    }
+  ],
+  "combinedScore": 0-100,
+  "overallGoodPoints": ["point1", "point2"],
+  "overallBadPoints": ["point1", "point2"],
+  "overallImprovements": ["action1", "action2"],
+  "aiSummary": "Multi-paragraph executive summary."
+}
+
+Be precise, professional, and reference specific sections of both documents.`;
+}
+
+async function analyzePolicyComplianceGemini(
+  userDocument: { name: string; content: string },
+  policies: { id: string; name: string; description: string; category: string; content: string }[]
+): Promise<Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt">> {
+  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // fallback: "gemini-pro"
+  const prompt = buildPolicyCompliancePrompt(userDocument, policies);
+  const result = await model.generateContent(prompt);
+  const response = result.response;
+  const text = response.text();
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("AI did not return valid JSON");
+  const parsed = JSON.parse(jsonMatch[0]);
+  return normalizePolicyReport(parsed, policies);
+}
+
+async function analyzePolicyComplianceOpenAI(
+  userDocument: { name: string; content: string },
+  policies: { id: string; name: string; description: string; category: string; content: string }[]
+): Promise<Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt">> {
+  const prompt = buildPolicyCompliancePrompt(userDocument, policies);
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+    }),
+  });
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) throw new Error("OpenAI returned no content");
+  const parsed = JSON.parse(content);
+  return normalizePolicyReport(parsed, policies);
+}
+
+function normalizePolicyReport(
+  parsed: Record<string, unknown>,
+  policies: { id: string; name: string }[]
+): Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt"> {
+  const perPolicyScores = (parsed.perPolicyScores as PerPolicyScore[] || []).map((p) => ({
+    policyId: p.policyId || "",
+    policyName: p.policyName || "",
+    score: Math.min(100, Math.max(0, Number(p.score) || 0)),
+    moduleBreakdown: Array.isArray(p.moduleBreakdown)
+      ? p.moduleBreakdown.map((m) => ({
+          module: m.module || "",
+          submodule: m.submodule,
+          score: Math.min(100, Math.max(0, Number(m.score) || 0)),
+          notes: m.notes || "",
+        }))
+      : [],
+    goodPoints: Array.isArray(p.goodPoints) ? p.goodPoints : [],
+    badPoints: Array.isArray(p.badPoints) ? p.badPoints : [],
+    improvements: Array.isArray(p.improvements) ? p.improvements : [],
+  }));
+  const combinedScore = Math.min(100, Math.max(0, Number(parsed.combinedScore) ?? 0));
+  return {
+    perPolicyScores,
+    combinedScore,
+    overallGoodPoints: Array.isArray(parsed.overallGoodPoints) ? parsed.overallGoodPoints : [],
+    overallBadPoints: Array.isArray(parsed.overallBadPoints) ? parsed.overallBadPoints : [],
+    overallImprovements: Array.isArray(parsed.overallImprovements) ? parsed.overallImprovements : [],
+    aiSummary: typeof parsed.aiSummary === "string" ? parsed.aiSummary : "",
+  };
+}
+
+function analyzePolicyComplianceMock(
+  userDocument: { name: string; content: string },
+  policies: { id: string; name: string; description: string }[]
+): Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt"> {
+  const perPolicyScores: PerPolicyScore[] = policies.map((p, i) => ({
+    policyId: p.id,
+    policyName: p.name,
+    score: 72 + (i % 3) * 8,
+    moduleBreakdown: [
+      { module: "Scope & Purpose", submodule: "Definitions", score: 85, notes: "Clearly defined." },
+      { module: "Responsibilities", submodule: undefined, score: 70, notes: "Some roles not specified." },
+      { module: "Procedures", submodule: undefined, score: 68, notes: "Steps could be more detailed." },
+    ],
+    goodPoints: ["Document aligns with policy intent.", "Key terms are used consistently."],
+    badPoints: ["Missing evidence of annual review.", "One procedure step not documented."],
+    improvements: ["Add review dates.", "Document the missing procedure step."],
+  }));
+  const combinedScore = Math.round(
+    perPolicyScores.reduce((s, p) => s + p.score, 0) / (perPolicyScores.length || 1)
+  );
+  return {
+    perPolicyScores,
+    combinedScore,
+    overallGoodPoints: ["Strong alignment on core requirements.", "Good use of standard terminology."],
+    overallBadPoints: ["Review cycle not evidenced.", "Some procedures lack detail."],
+    overallImprovements: ["Evidence annual review.", "Complete procedure documentation."],
+    aiSummary: `This self-assessment document was analyzed against ${policies.length} policy/policies. Combined compliance score: ${combinedScore}%. The document shows good alignment in several areas; focus on documenting review cycles and filling procedure gaps to improve scores.`,
+  };
+}
+
 const STOPWORDS = new Set([
   "the",
   "and",

@@ -23,6 +23,7 @@ import { useAccreditation } from "@/contexts/accreditation-context";
 import { AssessmentControls, type AssessmentValue } from "@/components/assessment-controls";
 import { RiskMatrix } from "@/components/risk-matrix";
 import { fetchAccreditation, fetchSubStandardActivities, fetchProjects } from "@/lib/api-client";
+import { DocumentAssessmentModal } from "@/components/document-assessment-modal";
 
 interface AccDetail {
   id: string;
@@ -103,6 +104,7 @@ export default function SelfAssessmentPage() {
   const [riskSelections, setRiskSelections] = useState<Record<string, { likelihood: number; impact: number } | null>>({});
   const [checklistModalOpen, setChecklistModalOpen] = useState(false);
   const [checklistModalData, setChecklistModalData] = useState<ActivityItem[]>([]);
+  const [documentAssessmentOpen, setDocumentAssessmentOpen] = useState(false);
 
   useEffect(() => {
     if (!selectedAccreditation) return;
@@ -296,8 +298,11 @@ export default function SelfAssessmentPage() {
           </div>
         </div>
 
-        <div className="flex justify-end">
-          <Button size="sm" className="bg-[#1a5276] hover:bg-[#154360] text-xs">
+        <div className="flex justify-end gap-2">
+          <Button size="sm" className="bg-[#1a5276] hover:bg-[#154360] text-xs" onClick={() => setDocumentAssessmentOpen(true)}>
+            Assess document
+          </Button>
+          <Button size="sm" variant="outline" className="text-xs">
             View Reports
           </Button>
         </div>
@@ -431,6 +436,8 @@ export default function SelfAssessmentPage() {
           </tbody>
         </table>
       </div>
+
+      <DocumentAssessmentModal open={documentAssessmentOpen} onOpenChange={setDocumentAssessmentOpen} />
 
       {/* Checklist Response Modal */}
       <Dialog open={checklistModalOpen} onOpenChange={setChecklistModalOpen}>

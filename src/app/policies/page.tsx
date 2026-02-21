@@ -43,6 +43,8 @@ export default function PoliciesPage() {
   const [formDepartment, setFormDepartment] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formOwner, setFormOwner] = useState("");
+  const [formFile, setFormFile] = useState<File | null>(null);
+  const [createError, setCreateError] = useState<string>("");
 
   useEffect(() => {
     loadPolicies();
@@ -63,22 +65,40 @@ export default function PoliciesPage() {
   const handleCreate = async () => {
     if (!formName.trim()) return;
     setCreating(true);
+    setCreateError("");
     try {
+      let file_path = "";
+      let file_type = "application/pdf";
+      if (formFile) {
+        const formData = new FormData();
+        formData.append("file", formFile);
+        const uploadRes = await fetch("/api/upload/policy", { method: "POST", body: formData });
+        if (!uploadRes.ok) {
+          const data = await uploadRes.json().catch(() => ({}));
+          throw new Error(data.error || "Document upload failed");
+        }
+        const upload = await uploadRes.json();
+        file_path = upload.file_path ?? "";
+        file_type = upload.file_type ?? file_type;
+      }
       await createPolicy({
         name: formName,
         category: formCategory as Policy["category"],
         department: formDepartment,
         description: formDescription,
         owner: formOwner,
+        file_path,
+        file_type,
       });
       setShowCreate(false);
       setFormName("");
       setFormDepartment("");
       setFormDescription("");
       setFormOwner("");
+      setFormFile(null);
       await loadPolicies();
     } catch (err) {
-      console.error(err);
+      setCreateError(err instanceof Error ? err.message : "Failed to create policy");
     } finally {
       setCreating(false);
     }
@@ -169,6 +189,17 @@ export default function PoliciesPage() {
                 <label className="mb-1 block text-sm font-medium">Owner</label>
                 <Input value={formOwner} onChange={(e) => setFormOwner(e.target.value)} placeholder="e.g. IPC Department" />
               </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">Attach document (optional)</label>
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                  className="cursor-pointer"
+                  onChange={(e) => setFormFile(e.target.files?.[0] ?? null)}
+                />
+                {formFile && <p className="mt-1 text-xs text-muted-foreground">Selected: {formFile.name}</p>}
+              </div>
+              {createError && <p className="text-sm text-destructive">{createError}</p>}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
