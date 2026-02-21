@@ -795,7 +795,7 @@ async function analyzePolicyComplianceGemini(
   policies: { id: string; name: string; description: string; category: string; content: string }[]
 ): Promise<Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt">> {
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); // fallback: "gemini-pro"
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
   const prompt = buildPolicyCompliancePrompt(userDocument, policies);
   const result = await model.generateContent(prompt);
   const response = result.response;
