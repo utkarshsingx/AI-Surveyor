@@ -5,6 +5,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Use postgresql for Vercel/Neon (not sqlite - file: URLs not valid in serverless)
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
