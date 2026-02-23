@@ -19,7 +19,7 @@ function getPrisma(): PrismaClient {
 /** Lazy-initialized so build can succeed without DATABASE_URL; throws on first use if unset. */
 export const prisma = new Proxy({} as PrismaClient, {
   get(_, prop: string | symbol) {
-    return (getPrisma() as Record<string | symbol, unknown>)[prop];
+    return (getPrisma() as unknown as Record<string | symbol, unknown>)[prop];
   },
 });
 
