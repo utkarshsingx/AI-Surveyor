@@ -270,7 +270,7 @@ async function compareDocumentsGemini(
 ): Promise<DocumentComparisonResult> {
   try {
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     const prompt = `You are a healthcare compliance expert. Compare the following two documents and analyze how well the user-submitted document matches with the master (reference) document from administration.
 
@@ -309,10 +309,10 @@ Be specific and reference actual content from both documents. Focus on complianc
           usageMetadata.candidatesTokenCount || 0,
           usageMetadata.totalTokenCount,
           "gemini",
-          "gemini-1.5-flash",
+          "gemini-2.0-flash",
           inputTokens
         )
-      : buildUsageFromEstimate(prompt, responseText, "gemini", "gemini-1.5-flash", inputTokens);
+      : buildUsageFromEstimate(prompt, responseText, "gemini", "gemini-2.0-flash", inputTokens);
 
     // Extract JSON from response
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -795,7 +795,7 @@ async function analyzePolicyComplianceGemini(
   policies: { id: string; name: string; description: string; category: string; content: string }[]
 ): Promise<Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt">> {
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
   const prompt = buildPolicyCompliancePrompt(userDocument, policies);
   const result = await model.generateContent(prompt);
   const response = result.response;
