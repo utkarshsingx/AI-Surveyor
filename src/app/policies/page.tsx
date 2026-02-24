@@ -44,6 +44,8 @@ export default function PoliciesPage() {
   const [formDescription, setFormDescription] = useState("");
   const [formOwner, setFormOwner] = useState("");
   const [formFile, setFormFile] = useState<File | null>(null);
+  const [formFiles, setFormFiles] = useState<File[]>([]);
+  const [bulkUploading, setBulkUploading] = useState(false);
   const [createError, setCreateError] = useState<string>("");
 
   useEffect(() => {
@@ -101,6 +103,41 @@ export default function PoliciesPage() {
       setCreateError(err instanceof Error ? err.message : "Failed to create policy");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (formFiles.length === 0) return;
+    setBulkUploading(true);
+    setCreateError("");
+    try {
+      for (const f of formFiles) {
+        const formData = new FormData();
+        formData.append("file", f);
+        const uploadRes = await fetch("/api/upload/policy", { method: "POST", body: formData });
+        if (!uploadRes.ok) {
+          const data = await uploadRes.json().catch(() => ({}));
+          throw new Error(data.error || `Upload failed for ${f.name}`);
+        }
+        const upload = await uploadRes.json();
+        const nameWithoutExt = f.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ");
+        await createPolicy({
+          name: nameWithoutExt,
+          category: "policy",
+          department: "",
+          description: `Uploaded from ${f.name}`,
+          owner: "",
+          file_path: upload.file_path ?? "",
+          file_type: upload.file_type ?? f.type,
+        });
+      }
+      setFormFiles([]);
+      setShowCreate(false);
+      await loadPolicies();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Bulk upload failed");
+    } finally {
+      setBulkUploading(false);
     }
   };
 
@@ -199,10 +236,36 @@ export default function PoliciesPage() {
                 />
                 {formFile && <p className="mt-1 text-xs text-muted-foreground">Selected: {formFile.name}</p>}
               </div>
+
+              <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4">
+                <label className="mb-1 block text-sm font-medium">Or bulk upload multiple files</label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Each file creates a separate policy automatically (name derived from filename).
+                </p>
+                <Input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                  multiple
+                  className="cursor-pointer"
+                  onChange={(e) => setFormFiles(e.target.files ? Array.from(e.target.files) : [])}
+                />
+                {formFiles.length > 0 && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formFiles.length} file(s): {formFiles.map((f) => f.name).join(", ")}
+                  </p>
+                )}
+              </div>
+
               {createError && <p className="text-sm text-destructive">{createError}</p>}
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+              {formFiles.length > 0 && (
+                <Button variant="secondary" onClick={handleBulkUpload} disabled={bulkUploading}>
+                  {bulkUploading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Upload {formFiles.length} file(s)
+                </Button>
+              )}
               <Button onClick={handleCreate} disabled={creating || !formName.trim()}>
                 {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
               </Button>
