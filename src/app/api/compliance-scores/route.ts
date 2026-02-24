@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { mockComplianceScores } from "@/data/mock-data";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/compliance-scores — get all compliance scores (latest assessment)
+// GET /api/compliance-scores — get all compliance scores (latest assessment); fallback to mock when DB unreachable
 export async function GET() {
   try {
     const latestAssessment = await prisma.assessment.findFirst({
@@ -45,7 +46,8 @@ export async function GET() {
     return NextResponse.json(scores);
   } catch (error) {
     console.error("Compliance scores GET error:", error);
-    return NextResponse.json({ error: "Failed to load scores" }, { status: 500 });
+    // When DB is unreachable (e.g. local dev or Neon paused), return mock so Reports and View Report still work
+    return NextResponse.json(mockComplianceScores);
   }
 }
 

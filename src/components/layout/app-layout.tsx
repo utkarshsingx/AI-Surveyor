@@ -15,9 +15,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Header />
-          <main className="flex-1 overflow-auto bg-muted/30 p-6">
+          <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-muted/30 p-6">
             {children}
           </main>
         </div>
