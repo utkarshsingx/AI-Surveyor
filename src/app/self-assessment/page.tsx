@@ -24,6 +24,7 @@ import { AssessmentControls, type AssessmentValue } from "@/components/assessmen
 import { RiskMatrix } from "@/components/risk-matrix";
 import { fetchAccreditation, fetchSubStandardActivities, fetchProjects } from "@/lib/api-client";
 import { DocumentAssessmentModal } from "@/components/document-assessment-modal";
+import Link from "next/link";
 
 interface AccDetail {
   id: string;
@@ -302,8 +303,8 @@ export default function SelfAssessmentPage() {
           <Button size="sm" className="bg-[#1a5276] hover:bg-[#154360] text-xs" onClick={() => setDocumentAssessmentOpen(true)}>
             Assess document
           </Button>
-          <Button size="sm" variant="outline" className="text-xs">
-            View Reports
+          <Button size="sm" variant="outline" className="text-xs" asChild>
+            <Link href="/reports">View Reports</Link>
           </Button>
         </div>
       </div>
