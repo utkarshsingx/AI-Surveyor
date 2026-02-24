@@ -320,7 +320,7 @@ Be specific and reference actual content from both documents. Focus on complianc
       throw new Error("Failed to parse AI response");
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(sanitizeJsonString(jsonMatch[0]));
 
     return {
       matchingPercentage: Math.min(100, Math.max(0, parsed.matchingPercentage || 0)),
@@ -677,6 +677,11 @@ function buildUsageFromActual(
   };
 }
 
+/** Remove control characters that break JSON.parse (e.g. literal newlines in AI output strings). */
+function sanitizeJsonString(raw: string): string {
+  return raw.replace(/[\x00-\x1f]/g, " ");
+}
+
 // ============================================
 // POLICY vs DOCUMENT SELF-ASSESSMENT (multi-policy scoring)
 // ============================================
@@ -707,12 +712,18 @@ export interface PolicyComplianceReport {
   overallBadPoints: string[];
   overallImprovements: string[];
   aiSummary: string;
+  usage?: TokenUsage;
 }
+
+export type PolicyComplianceResult = Omit<
+  PolicyComplianceReport,
+  "reportId" | "documentName" | "analyzedAt"
+> & { usage?: TokenUsage };
 
 export async function analyzePolicyCompliance(
   userDocument: { name: string; content: string },
   policies: { id: string; name: string; description: string; category: string; content: string }[]
-): Promise<Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt">> {
+): Promise<PolicyComplianceResult> {
   if (policies.length === 0) {
     return {
       perPolicyScores: [],
@@ -793,23 +804,32 @@ Be precise, professional, and reference specific sections of both documents.`;
 async function analyzePolicyComplianceGemini(
   userDocument: { name: string; content: string },
   policies: { id: string; name: string; description: string; category: string; content: string }[]
-): Promise<Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt">> {
+): Promise<PolicyComplianceResult> {
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   const prompt = buildPolicyCompliancePrompt(userDocument, policies);
   const result = await model.generateContent(prompt);
   const response = result.response;
   const text = response.text();
+  const usageMetadata = (response as { usageMetadata?: { promptTokenCount?: number; completionTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }).usageMetadata;
+  const promptTokens = usageMetadata?.promptTokenCount ?? 0;
+  const completionTokens = usageMetadata?.completionTokenCount ?? usageMetadata?.candidatesTokenCount ?? 0;
+  const totalTokens = usageMetadata?.totalTokenCount ?? promptTokens + completionTokens;
+  const usage: TokenUsage =
+    promptTokens || completionTokens
+      ? buildUsageFromActual(promptTokens, completionTokens, totalTokens, "gemini", "gemini-2.5-flash")
+      : buildUsageFromEstimate(prompt, text, "gemini", "gemini-2.5-flash");
+
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("AI did not return valid JSON");
-  const parsed = JSON.parse(jsonMatch[0]);
-  return normalizePolicyReport(parsed, policies);
+  const parsed = JSON.parse(sanitizeJsonString(jsonMatch[0]));
+  return { ...normalizePolicyReport(parsed, policies), usage };
 }
 
 async function analyzePolicyComplianceOpenAI(
   userDocument: { name: string; content: string },
   policies: { id: string; name: string; description: string; category: string; content: string }[]
-): Promise<Omit<PolicyComplianceReport, "reportId" | "documentName" | "analyzedAt">> {
+): Promise<PolicyComplianceResult> {
   const prompt = buildPolicyCompliancePrompt(userDocument, policies);
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -828,7 +848,18 @@ async function analyzePolicyComplianceOpenAI(
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error("OpenAI returned no content");
   const parsed = JSON.parse(content);
-  return normalizePolicyReport(parsed, policies);
+  const usageData = data.usage as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
+  const usage: TokenUsage =
+    usageData?.prompt_tokens != null
+      ? buildUsageFromActual(
+          usageData.prompt_tokens,
+          usageData.completion_tokens ?? 0,
+          usageData.total_tokens,
+          "openai",
+          OPENAI_MODEL
+        )
+      : buildUsageFromEstimate(prompt, content, "openai", OPENAI_MODEL);
+  return { ...normalizePolicyReport(parsed, policies), usage };
 }
 
 function normalizePolicyReport(
@@ -1085,4 +1116,203 @@ export async function generateReportContent(
 <p>Overall Score: ${projectData.overallScore}%</p>
 <p>Generated: ${new Date().toISOString()}</p>`,
   };
+}
+
+// ============================================
+// AI SURVEYOR — Standards/Activities Assessment
+// ============================================
+
+export interface ActivityInput {
+  id: string;
+  label: string;
+  description: string;
+  type: string;
+}
+
+export interface SubStandardInput {
+  subStandardId: string;
+  code: string;
+  name: string;
+  activities: ActivityInput[];
+}
+
+export interface ActivityAssessmentResult {
+  activityId: string;
+  label: string;
+  status: "met" | "partially_met" | "not_met";
+  justification: string;
+}
+
+export interface SubStandardAssessmentResult {
+  subStandardId: string;
+  code: string;
+  name: string;
+  score: number;
+  activities: ActivityAssessmentResult[];
+}
+
+export interface AssessActivitiesResult {
+  subStandards: SubStandardAssessmentResult[];
+  usage?: TokenUsage;
+}
+
+export async function assessActivities(
+  documentContent: string,
+  documentName: string,
+  subStandards: SubStandardInput[]
+): Promise<AssessActivitiesResult> {
+  const geminiClient = getGeminiClient();
+  if (geminiClient && GEMINI_API_KEY) {
+    return assessActivitiesGemini(documentContent, documentName, subStandards);
+  }
+  return assessActivitiesMock(subStandards);
+}
+
+function buildAssessActivitiesPrompt(
+  documentName: string,
+  documentContent: string,
+  subStandards: SubStandardInput[]
+): string {
+  const subStdBlock = subStandards
+    .map(
+      (ss) =>
+        `--- SUBSTANDARD: ${ss.code} — ${ss.name} (ID: ${ss.subStandardId}) ---\n` +
+        ss.activities
+          .map(
+            (a) =>
+              `  Activity [${a.id}]: "${a.label}" (type: ${a.type})${a.description ? ` — ${a.description}` : ""}`
+          )
+          .join("\n")
+    )
+    .join("\n\n");
+
+  return `You are an expert healthcare accreditation surveyor. You are given a DOCUMENT uploaded by a facility and a list of SUBSTANDARDS, each containing ACTIVITIES (checklist items, data collection, or document evidence requirements).
+
+For EACH activity, evaluate whether the uploaded document provides evidence that the activity is met, partially met, or not met.
+
+DOCUMENT:
+Name: ${documentName}
+Content:
+${documentContent.slice(0, 30000)}
+
+SUBSTANDARDS AND ACTIVITIES:
+${subStdBlock}
+
+For EACH substandard, evaluate every activity. Respond with ONLY valid JSON (no markdown, no extra text) in this exact structure:
+{
+  "subStandards": [
+    {
+      "subStandardId": "<id>",
+      "code": "<code>",
+      "name": "<name>",
+      "activities": [
+        {
+          "activityId": "<activity id>",
+          "label": "<activity label>",
+          "status": "met" | "partially_met" | "not_met",
+          "justification": "1-2 sentence explanation referencing the document"
+        }
+      ]
+    }
+  ]
+}
+
+Be precise: "met" means clear evidence found, "partially_met" means some evidence but gaps exist, "not_met" means no evidence found. Reference specific parts of the document when possible.`;
+}
+
+async function assessActivitiesGemini(
+  documentContent: string,
+  documentName: string,
+  subStandards: SubStandardInput[]
+): Promise<AssessActivitiesResult> {
+  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const prompt = buildAssessActivitiesPrompt(documentName, documentContent, subStandards);
+  const result = await model.generateContent(prompt);
+  const response = result.response;
+  const text = response.text();
+
+  const usageMetadata = (
+    response as {
+      usageMetadata?: {
+        promptTokenCount?: number;
+        completionTokenCount?: number;
+        candidatesTokenCount?: number;
+        totalTokenCount?: number;
+      };
+    }
+  ).usageMetadata;
+  const promptTokens = usageMetadata?.promptTokenCount ?? 0;
+  const completionTokens =
+    usageMetadata?.completionTokenCount ??
+    usageMetadata?.candidatesTokenCount ??
+    0;
+  const totalTokens =
+    usageMetadata?.totalTokenCount ?? promptTokens + completionTokens;
+  const usage: TokenUsage =
+    promptTokens || completionTokens
+      ? buildUsageFromActual(
+          promptTokens,
+          completionTokens,
+          totalTokens,
+          "gemini",
+          "gemini-2.5-flash"
+        )
+      : buildUsageFromEstimate(prompt, text, "gemini", "gemini-2.5-flash");
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("AI did not return valid JSON");
+  const parsed = JSON.parse(sanitizeJsonString(jsonMatch[0]));
+
+  const subStdResults: SubStandardAssessmentResult[] = (
+    parsed.subStandards as SubStandardAssessmentResult[] || []
+  ).map((ss) => {
+    const acts: ActivityAssessmentResult[] = (ss.activities || []).map((a) => ({
+      activityId: a.activityId || "",
+      label: a.label || "",
+      status: (["met", "partially_met", "not_met"].includes(a.status) ? a.status : "not_met") as ActivityAssessmentResult["status"],
+      justification: a.justification || "",
+    }));
+    const met = acts.filter((a) => a.status === "met").length;
+    const partial = acts.filter((a) => a.status === "partially_met").length;
+    const total = acts.length;
+    const score = total > 0 ? Math.round(((met + partial * 0.5) / total) * 100) : 0;
+    return {
+      subStandardId: ss.subStandardId || "",
+      code: ss.code || "",
+      name: ss.name || "",
+      score,
+      activities: acts,
+    };
+  });
+
+  return { subStandards: subStdResults, usage };
+}
+
+function assessActivitiesMock(
+  subStandards: SubStandardInput[]
+): AssessActivitiesResult {
+  const subStdResults: SubStandardAssessmentResult[] = subStandards.map((ss) => {
+    const acts: ActivityAssessmentResult[] = ss.activities.map((a, i) => {
+      const statuses: ActivityAssessmentResult["status"][] = ["met", "partially_met", "not_met"];
+      return {
+        activityId: a.id,
+        label: a.label,
+        status: statuses[i % 3],
+        justification: `Mock: Activity "${a.label}" evaluated as ${statuses[i % 3]}.`,
+      };
+    });
+    const met = acts.filter((a) => a.status === "met").length;
+    const partial = acts.filter((a) => a.status === "partially_met").length;
+    const total = acts.length;
+    const score = total > 0 ? Math.round(((met + partial * 0.5) / total) * 100) : 0;
+    return {
+      subStandardId: ss.subStandardId,
+      code: ss.code,
+      name: ss.name,
+      score,
+      activities: acts,
+    };
+  });
+  return { subStandards: subStdResults };
 }
