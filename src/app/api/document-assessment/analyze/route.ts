@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readDocumentContent } from "@/lib/document-reader";
 import { analyzePolicyCompliance } from "@/lib/ai";
+import { logTokenUsage } from "@/lib/token-usage-log";
 import { addReport } from "@/lib/document-assessment-store";
 import { mockPolicies } from "@/data/mock";
 import { getCreatedPolicies } from "@/lib/policy-store";
@@ -65,6 +66,10 @@ export async function POST(request: NextRequest) {
       { name: fileName, content: userContent },
       policiesWithContent
     );
+
+    if (result.usage) {
+      logTokenUsage("document-assessment/analyze", fileName, result.usage);
+    }
 
     const reportId = randomUUID();
     const report = {

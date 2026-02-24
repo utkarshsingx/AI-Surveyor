@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getNextPendingDocument, addReport, removePendingByKey } from "@/lib/document-assessment-store";
 import { readDocumentContent } from "@/lib/document-reader";
 import { analyzePolicyCompliance } from "@/lib/ai";
+import { logTokenUsage } from "@/lib/token-usage-log";
 import { mockPolicies } from "@/data/mock";
 import { getCreatedPolicies } from "@/lib/policy-store";
 import type { MockPolicy } from "@/data/mock/policies";
@@ -66,6 +67,10 @@ async function processOne() {
       policiesWithContent
     );
 
+    if (result.usage) {
+      logTokenUsage("document-assessment/process-pending", pending.documentName, result.usage);
+    }
+
     const reportId = randomUUID();
     addReport({
       reportId,
@@ -80,6 +85,7 @@ async function processOne() {
       reportId,
       documentName: pending.documentName,
       combinedScore: result.combinedScore,
+      usage: result.usage,
     }, { status: 200 });
   } catch (err) {
     console.error("Process pending error:", err);
