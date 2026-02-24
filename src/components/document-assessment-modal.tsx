@@ -121,7 +121,8 @@ export function DocumentAssessmentModal({
   const toggleSubStandard = (ssId: string) => {
     setSelectedSubStdIds((prev) => {
       const next = new Set(prev);
-      next.has(ssId) ? next.delete(ssId) : next.add(ssId);
+      if (next.has(ssId)) next.delete(ssId);
+      else next.add(ssId);
       return next;
     });
   };
@@ -129,7 +130,8 @@ export function DocumentAssessmentModal({
   const toggleExpand = (stdId: string) => {
     setExpandedStdIds((prev) => {
       const next = new Set(prev);
-      next.has(stdId) ? next.delete(stdId) : next.add(stdId);
+      if (next.has(stdId)) next.delete(stdId);
+      else next.add(stdId);
       return next;
     });
   };
@@ -475,9 +477,8 @@ export function DocumentAssessmentModal({
                           onClick={() =>
                             setExpandedResultStd((prev) => {
                               const next = new Set(prev);
-                              next.has(std.id)
-                                ? next.delete(std.id)
-                                : next.add(std.id);
+                              if (next.has(std.id)) next.delete(std.id);
+                              else next.add(std.id);
                               return next;
                             })
                           }
@@ -520,9 +521,9 @@ export function DocumentAssessmentModal({
                                     onClick={() =>
                                       setExpandedResultSs((prev) => {
                                         const next = new Set(prev);
-                                        next.has(ss.subStandardId)
-                                          ? next.delete(ss.subStandardId)
-                                          : next.add(ss.subStandardId);
+                                        if (next.has(ss.subStandardId))
+                                          next.delete(ss.subStandardId);
+                                        else next.add(ss.subStandardId);
                                         return next;
                                       })
                                     }

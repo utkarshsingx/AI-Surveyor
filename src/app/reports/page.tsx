@@ -21,8 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { fetchProjects, fetchComplianceScores, fetchCorrectiveActions } from "@/lib/api-client";
 import type { SurveyProject, ComplianceScore, CorrectiveAction } from "@/types";
-import { mockComplianceScores } from "@/data/mock-data";
-import { mockCorrectiveActions } from "@/data/mock";
+import { mockComplianceScores, mockCorrectiveActions } from "@/data/mock-data";
 
 const STANDARD_NEEDS_ATTENTION_THRESHOLD = 60; // Score below this: focus for manual surveyor
 
@@ -42,7 +41,9 @@ export default function ReportsPage() {
       .then(([projects, scoresData, actionsData]) => {
         if (projects.length > 0) setProject(projects[0]);
         setScores(Array.isArray(scoresData) ? scoresData : mockComplianceScores);
-        setActions(Array.isArray(actionsData) ? actionsData : mockCorrectiveActions);
+        setActions(
+          (Array.isArray(actionsData) ? actionsData : mockCorrectiveActions) as CorrectiveAction[]
+        );
       })
       .catch(console.error)
       .finally(() => setLoading(false));
