@@ -677,9 +677,78 @@ function buildUsageFromActual(
   };
 }
 
-/** Remove control characters that break JSON.parse (e.g. literal newlines in AI output strings). */
+/** Escape unescaped double-quotes and raw newlines inside double-quoted JSON string values. */
+function escapeInsideJsonStrings(s: string): string {
+  let out = "";
+  let inString = false;
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    if (!inString) {
+      out += c;
+      if (c === '"') inString = true;
+      i++;
+      continue;
+    }
+    // Inside a double-quoted string
+    if (c === "\\") {
+      out += c;
+      out += s[i + 1] ?? "";
+      i += 2;
+      continue;
+    }
+    if (c === '"') {
+      // Peek ahead: if next non-space is } , ] or : (key closing), treat as closing quote
+      let j = i + 1;
+      while (j < s.length && /[\s\n\r]/.test(s[j])) j++;
+      const next = s[j];
+      if (next === "}" || next === "," || next === "]" || next === ":" || next === undefined) {
+        out += c;
+        inString = false;
+      } else {
+        out += '\\"';
+      }
+      i++;
+      continue;
+    }
+    if (c === "\n") {
+      out += "\\n";
+      i++;
+      continue;
+    }
+    if (c === "\r") {
+      out += "\\r";
+      i++;
+      continue;
+    }
+    if (c === "\t") {
+      out += "\\t";
+      i++;
+      continue;
+    }
+    if (/[\x00-\x1f]/.test(c)) {
+      out += " ";
+      i++;
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out;
+}
+
+/** Remove control characters and fix common AI JSON issues (single-quoted keys/values, trailing commas, unescaped content in strings). */
 function sanitizeJsonString(raw: string): string {
-  return raw.replace(/[\x00-\x1f]/g, " ");
+  let s = raw.replace(/[\x00-\x1f]/g, " ");
+  // Single-quoted object keys -> double-quoted (e.g. 'status': 'met' -> "status": ...)
+  s = s.replace(/'((?:[^'\\]|\\.)*?')\s*:/g, (_, key: string) => '"' + key.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '":');
+  // Single-quoted string values -> double-quoted (JSON allows only double-quoted strings)
+  s = s.replace(/'((?:[^'\\]|\\.)*?)'/g, (_, val: string) => '"' + val.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"');
+  // Trailing commas before } or ]
+  s = s.replace(/,(\s*[}\]])/g, "$1");
+  // Escape raw newlines etc. inside double-quoted string values so parser doesn't see "value", "next" as two values
+  s = escapeInsideJsonStrings(s);
+  return s;
 }
 
 // ============================================
@@ -1262,7 +1331,8 @@ async function assessActivitiesGemini(
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("AI did not return valid JSON");
-  const parsed = JSON.parse(sanitizeJsonString(jsonMatch[0]));
+  const jsonStr = sanitizeJsonString(jsonMatch[0]);
+  const parsed = JSON.parse(jsonStr) as { subStandards?: unknown[] };
 
   const subStdResults: SubStandardAssessmentResult[] = (
     parsed.subStandards as SubStandardAssessmentResult[] || []
