@@ -36,6 +36,11 @@ const modules = [
     description: "Upload two standards to match",
     href: "/document-comparison",
   },
+  {
+    title: "AI Surveyor",
+    description: "AI-powered mock survey — automatically assess standards and activities against uploaded documents.",
+    href: "/",
+  },
 ];
 
 export default function AccreditationsPage() {
