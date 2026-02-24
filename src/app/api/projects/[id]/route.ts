@@ -11,6 +11,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       include: {
         facility: true,
         chapterScores: true,
+        standardScores: true,
         createdBy: { select: { name: true } },
         correctiveActions: true,
         assessments: { orderBy: { startedAt: "desc" }, take: 1 },
@@ -46,6 +47,17 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
         partial: cs.partial,
         non_compliant: cs.nonCompliant,
         not_applicable: cs.notApplicable,
+      })),
+      standard_scores: (project.standardScores ?? []).map(ss => ({
+        standard_id: ss.standardId,
+        standard_code: ss.standardCode,
+        standard_name: ss.standardName,
+        score: ss.score,
+        total_mes: ss.totalMes,
+        compliant: ss.compliant,
+        partial: ss.partial,
+        non_compliant: ss.nonCompliant,
+        not_applicable: ss.notApplicable,
       })),
     });
   } catch (error) {

@@ -36,6 +36,11 @@ export const mockProjects: SurveyProject[] = [
       { chapter_id: "CH-05", chapter_name: "Medication Management", score: 58, total_mes: 3, compliant: 1, partial: 1, non_compliant: 1, not_applicable: 0 },
       { chapter_id: "CH-06", chapter_name: "Leadership", score: 80, total_mes: 2, compliant: 1, partial: 1, non_compliant: 0, not_applicable: 0 },
     ],
+    standard_scores: [
+      { standard_id: "STD-1", standard_code: "IC.1", standard_name: "Infection Control Program", score: 72, total_mes: 4, compliant: 2, partial: 1, non_compliant: 1, not_applicable: 0 },
+      { standard_id: "STD-2", standard_code: "PC.1", standard_name: "Patient Care Assessment", score: 85, total_mes: 3, compliant: 2, partial: 1, non_compliant: 0, not_applicable: 0 },
+      { standard_id: "STD-3", standard_code: "MM.1", standard_name: "Medication Management", score: 45, total_mes: 3, compliant: 1, partial: 0, non_compliant: 2, not_applicable: 0 },
+    ],
   },
   {
     id: "PRJ-002",

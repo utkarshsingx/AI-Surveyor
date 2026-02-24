@@ -76,16 +76,17 @@ model Chapter {
 // STANDARDS & MEASURABLE ELEMENTS
 // ============================================
 model Standard {
-  id           String @id @default(uuid())
-  chapterId    String
-  code         String // DA1, DA2
-  standardName String
-  description  String
-  criticality  String @default("non-critical")
-  sortOrder    Int    @default(0)
+  id             String         @id @default(uuid())
+  chapterId      String
+  code           String // DA1, DA2
+  standardName   String
+  description    String
+  criticality    String         @default("non-critical")
+  sortOrder      Int            @default(0)
 
-  chapter      Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  subStandards SubStandard[]
+  chapter        Chapter        @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  subStandards   SubStandard[]
+  standardScores StandardScore[]
 
   @@unique([chapterId, code])
 }
@@ -182,6 +183,7 @@ model SurveyProject {
   accreditation     Accreditation?     @relation(fields: [accreditationId], references: [id])
   createdBy         User               @relation("ProjectCreator", fields: [createdById], references: [id])
   chapterScores     ChapterScore[]
+  standardScores    StandardScore[]
   assessments       Assessment[]
   evidence          ProjectEvidence[]
   correctiveActions CorrectiveAction[]
@@ -204,6 +206,26 @@ model ChapterScore {
   chapter Chapter?      @relation(fields: [chapterId], references: [id])
 
   @@unique([projectId, chapterId])
+}
+
+// Per-standard score (AI surveyor: same structure as manual survey — score per standard)
+model StandardScore {
+  id             String  @id @default(uuid())
+  projectId      String
+  standardId     String
+  standardCode   String
+  standardName   String
+  score          Float   @default(0)
+  totalMes       Int     @default(0)
+  compliant      Int     @default(0)
+  partial        Int     @default(0)
+  nonCompliant   Int     @default(0)
+  notApplicable  Int     @default(0)
+
+  project SurveyProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  standard Standard?    @relation(fields: [standardId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, standardId])
 }
 
 // ============================================

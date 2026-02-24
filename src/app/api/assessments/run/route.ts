@@ -184,6 +184,50 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Per-standard scores (AI surveyor mirrors manual survey: score per standard for comparison)
+    for (const ch of chapters) {
+      for (const std of ch.standards) {
+        const standardMeIds = std.subStandards.flatMap(ss =>
+          ss.measurableElements.map(me => me.id)
+        );
+        const standardResults = results.filter(r => standardMeIds.includes(r.meId));
+        if (standardResults.length === 0) continue;
+
+        const compliant = standardResults.filter(r => r.aiScore === "compliant").length;
+        const partial = standardResults.filter(r => r.aiScore === "partial").length;
+        const nonCompliant = standardResults.filter(r => r.aiScore === "non-compliant").length;
+        const notApplicable = standardResults.filter(r => r.aiScore === "not-applicable").length;
+        const scored = standardResults.length - notApplicable;
+        const score = scored > 0 ? Math.round(((compliant + partial * 0.5) / scored) * 100) : 0;
+
+        await prisma.standardScore.upsert({
+          where: {
+            projectId_standardId: { projectId, standardId: std.id },
+          },
+          create: {
+            projectId,
+            standardId: std.id,
+            standardCode: std.code,
+            standardName: std.standardName,
+            score,
+            totalMes: standardResults.length,
+            compliant,
+            partial,
+            nonCompliant,
+            notApplicable,
+          },
+          update: {
+            score,
+            totalMes: standardResults.length,
+            compliant,
+            partial,
+            nonCompliant,
+            notApplicable,
+          },
+        });
+      }
+    }
+
     // Calculate overall score
     const allChapterScores = await prisma.chapterScore.findMany({
       where: { projectId },

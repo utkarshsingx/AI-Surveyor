@@ -154,11 +154,25 @@ export interface SurveyProject {
   team_members: string[];
   overall_score: number;
   chapter_scores: ChapterScore[];
+  /** Per-standard scores (AI surveyor report — compare with manual assessment) */
+  standard_scores?: StandardScore[];
 }
 
 export interface ChapterScore {
   chapter_id: string;
   chapter_name: string;
+  score: number;
+  total_mes: number;
+  compliant: number;
+  partial: number;
+  non_compliant: number;
+  not_applicable: number;
+}
+
+export interface StandardScore {
+  standard_id: string;
+  standard_code: string;
+  standard_name: string;
   score: number;
   total_mes: number;
   compliant: number;
@@ -258,4 +272,38 @@ export interface CopilotSource {
   document_name: string;
   section: string;
   relevance: number;
+}
+
+// AI Surveyor — standards-based assessment results
+export type ActivityAssessmentStatus = "met" | "partially_met" | "not_met";
+
+export interface AISurveyorActivityResult {
+  activityId: string;
+  label: string;
+  status: ActivityAssessmentStatus;
+  justification: string;
+}
+
+export interface AISurveyorSubStandardResult {
+  subStandardId: string;
+  code: string;
+  name: string;
+  score: number;
+  activities: AISurveyorActivityResult[];
+}
+
+export interface AISurveyorStandardResult {
+  standardId: string;
+  code: string;
+  name: string;
+  score: number;
+  subStandards: AISurveyorSubStandardResult[];
+}
+
+export interface AISurveyorResult {
+  overallScore: number;
+  summary: string;
+  standards: AISurveyorStandardResult[];
+  documentName: string;
+  analyzedAt: string;
 }
