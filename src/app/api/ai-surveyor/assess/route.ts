@@ -1,24 +1,60 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readFileSync } from "fs";
+import path from "path";
 import { readDocumentContent } from "@/lib/document-reader";
 import { assessActivities, type SubStandardInput } from "@/lib/ai";
 import { logTokenUsage } from "@/lib/token-usage-log";
 import { getActivitiesBySubStandardId } from "@/data/mock";
+import { getLibraryDocument, getLibraryDocumentByKey } from "@/lib/document-assessment-store";
 
 export const maxDuration = 60;
 
 /**
  * POST /api/ai-surveyor/assess
- * Accepts multipart: file + subStandardIds (JSON array)
- * Loads activities for each substandard, sends to AI, returns per-activity met/partially_met/not_met.
+ * Accepts multipart: file (or libraryKey) + subStandardIds (JSON array)
+ * If libraryKey is provided, document is read from the library; otherwise file is used.
  */
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
+    const libraryKey = formData.get("libraryKey") as string | null;
+    const libraryId = formData.get("libraryId") as string | null;
     const subStandardIdsRaw = formData.get("subStandardIds");
 
-    if (!file || !(file instanceof File)) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    let documentContent: string;
+    let fileName: string;
+
+    if (libraryId || (libraryKey && libraryKey.trim())) {
+      const libDoc = libraryId
+        ? getLibraryDocument(libraryId)
+        : getLibraryDocumentByKey(libraryKey!.trim());
+      if (!libDoc) {
+        return NextResponse.json(
+          { error: "Library document not found" },
+          { status: 400 }
+        );
+      }
+      const fullPath = path.join(process.cwd(), "public", libDoc.key);
+      let buffer: Buffer;
+      try {
+        buffer = readFileSync(fullPath);
+      } catch (err) {
+        console.error("Read library file error:", err);
+        return NextResponse.json(
+          { error: "Document file could not be read" },
+          { status: 400 }
+        );
+      }
+      documentContent = readDocumentContent(buffer, libDoc.documentName, `Uploaded: ${libDoc.documentName}`);
+      fileName = libDoc.documentName;
+    } else if (file && file instanceof File) {
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      fileName = file.name || "document";
+      documentContent = readDocumentContent(buffer, fileName, `Uploaded: ${fileName}`);
+    } else {
+      return NextResponse.json({ error: "No file or library document provided" }, { status: 400 });
     }
 
     let subStandardIds: string[] = [];
@@ -36,11 +72,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const fileName = file.name || "document";
-    const documentContent = readDocumentContent(buffer, fileName, `Uploaded: ${fileName}`);
 
     const subStandards: SubStandardInput[] = [];
     for (const ssId of subStandardIds) {
