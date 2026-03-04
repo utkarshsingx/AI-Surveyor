@@ -737,9 +737,15 @@ function escapeInsideJsonStrings(s: string): string {
   return out;
 }
 
+function fixUnquotedJsonKeys(s: string): string {
+  return s.replace(/([\{\,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
+}
+
 /** Remove control characters and fix common AI JSON issues (single-quoted keys/values, trailing commas, unescaped content in strings). */
 function sanitizeJsonString(raw: string): string {
   let s = raw.replace(/[\x00-\x1f]/g, " ");
+
+  s = fixUnquotedJsonKeys(s);
   // Single-quoted object keys -> double-quoted (e.g. 'status': 'met' -> "status": ...)
   s = s.replace(/'((?:[^'\\]|\\.)*?')\s*:/g, (_, key: string) => '"' + key.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '":');
   // Single-quoted string values -> double-quoted (JSON allows only double-quoted strings)
@@ -1331,8 +1337,15 @@ async function assessActivitiesGemini(
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("AI did not return valid JSON");
-  const jsonStr = sanitizeJsonString(jsonMatch[0]);
-  const parsed = JSON.parse(jsonStr) as { subStandards?: unknown[] };
+  let jsonStr = sanitizeJsonString(jsonMatch[0]);
+  let parsed: { subStandards?: unknown[] };
+  try {
+    parsed = JSON.parse(jsonStr) as { subStandards?: unknown[] };
+  } catch {
+    // Retry with a second pass of unquoted-key fix (in case first pass missed some)
+    jsonStr = fixUnquotedJsonKeys(jsonStr);
+    parsed = JSON.parse(jsonStr) as { subStandards?: unknown[] };
+  }
 
   const subStdResults: SubStandardAssessmentResult[] = (
     parsed.subStandards as SubStandardAssessmentResult[] || []
