@@ -34,6 +34,13 @@ interface DocumentAssessmentModalProps {
 
 type Step = "upload" | "scope" | "analyzing" | "result";
 
+interface LibraryDocument {
+  id: string;
+  key: string;
+  documentName: string;
+  uploadedAt: string;
+}
+
 const STATUS_ICON: Record<string, React.ReactNode> = {
   met: <CheckCircle2 className="h-4 w-4 text-green-600" />,
   partially_met: <AlertTriangle className="h-4 w-4 text-yellow-600" />,
@@ -60,6 +67,9 @@ export function DocumentAssessmentModal({
   const { selectedAccreditation } = useAccreditation();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
+  const [selectedLibraryDoc, setSelectedLibraryDoc] = useState<LibraryDocument | null>(null);
+  const [libraryDocs, setLibraryDocs] = useState<LibraryDocument[]>([]);
+  const [loadingLibrary, setLoadingLibrary] = useState(false);
   const [error, setError] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -86,9 +96,21 @@ export function DocumentAssessmentModal({
     }
   }, [open, selectedAccreditation]);
 
+  useEffect(() => {
+    if (open && step === "upload") {
+      setLoadingLibrary(true);
+      fetch("/api/document-assessment/library")
+        .then((res) => res.json())
+        .then((data) => setLibraryDocs(Array.isArray(data) ? data : []))
+        .catch(() => setLibraryDocs([]))
+        .finally(() => setLoadingLibrary(false));
+    }
+  }, [open, step]);
+
   const reset = () => {
     setStep("upload");
     setFile(null);
+    setSelectedLibraryDoc(null);
     setError("");
     setResult(null);
     setSelectedSubStdIds(new Set());
@@ -96,6 +118,8 @@ export function DocumentAssessmentModal({
     setExpandedResultStd(new Set());
     setExpandedResultSs(new Set());
   };
+
+  const hasDocument = !!file || !!selectedLibraryDoc;
 
   const handleClose = (o: boolean) => {
     if (!o) reset();
@@ -137,8 +161,8 @@ export function DocumentAssessmentModal({
   };
 
   const handleRunAssessment = async () => {
-    if (!file || selectedSubStdIds.size === 0) {
-      setError("Upload a document and select at least one standard.");
+    if (!hasDocument || selectedSubStdIds.size === 0) {
+      setError("Choose or upload a document and select at least one standard.");
       return;
     }
     setError("");
@@ -146,7 +170,11 @@ export function DocumentAssessmentModal({
     setAnalyzing(true);
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      if (selectedLibraryDoc) {
+        formData.append("libraryId", selectedLibraryDoc.id);
+      } else if (file) {
+        formData.append("file", file);
+      }
       formData.append(
         "subStandardIds",
         JSON.stringify(Array.from(selectedSubStdIds))
@@ -267,26 +295,70 @@ export function DocumentAssessmentModal({
           </DialogTitle>
         </DialogHeader>
 
-        {/* STEP 1: Upload */}
+        {/* STEP 1: Upload or select from library */}
         {step === "upload" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Upload a document. The AI surveyor will check each activity in the
-              selected standards against this document and determine met / partially
-              met / not met.
+              Upload a document or select one already uploaded in Admin configuration.
+              The AI surveyor will check each activity in the selected standards
+              against this document.
             </p>
             <div>
-              <label className="mb-1 block text-sm font-medium">Document</label>
+              <label className="mb-1 block text-sm font-medium">Upload new document</label>
               <Input
                 type="file"
                 accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,.txt,.md"
                 className="cursor-pointer"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  setFile(f);
+                  if (f) setSelectedLibraryDoc(null);
+                }}
               />
               {file && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   Selected: {file.name}
                 </p>
+              )}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Or select from uploaded documents</label>
+              {loadingLibrary ? (
+                <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading…
+                </div>
+              ) : libraryDocs.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">
+                  No uploaded documents. Add some in Dashboard → Admin configuration.
+                </p>
+              ) : (
+                <ScrollArea className="max-h-[160px] rounded-md border p-2">
+                  <ul className="space-y-1">
+                    {libraryDocs.map((d) => (
+                      <li key={d.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedLibraryDoc(d);
+                            setFile(null);
+                          }}
+                          className={`w-full flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm transition-colors ${
+                            selectedLibraryDoc?.id === d.id
+                              ? "bg-[#1a5276]/15 text-[#1a5276] font-medium"
+                              : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <FileText className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{d.documentName}</span>
+                          {selectedLibraryDoc?.id === d.id && (
+                            <CheckCircle2 className="h-4 w-4 shrink-0 text-[#1a5276]" />
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </ScrollArea>
               )}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -296,7 +368,7 @@ export function DocumentAssessmentModal({
               </Button>
               <Button
                 className="bg-[#1a5276] hover:bg-[#154360]"
-                disabled={!file}
+                disabled={!hasDocument}
                 onClick={() => setStep("scope")}
               >
                 Next: Select standards
@@ -312,6 +384,12 @@ export function DocumentAssessmentModal({
               Select standards and substandards. AI will evaluate every activity
               within the selected scope.
             </p>
+            {hasDocument && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <FileText className="h-3.5 w-3.5" />
+                Document: {file?.name ?? selectedLibraryDoc?.documentName ?? "—"}
+              </p>
+            )}
             <ScrollArea className="flex-1 border rounded-md p-3 max-h-[400px]">
               {loadingTree ? (
                 <div className="flex items-center justify-center py-8">
