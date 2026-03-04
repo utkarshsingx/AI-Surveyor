@@ -17,7 +17,9 @@ import {
   BookOpen,
   ClipboardCheck,
   FileText,
+  Settings,
 } from "lucide-react";
+import { AdminConfigModal } from "@/components/admin-config-modal";
 import {
   Card,
   CardContent,
@@ -38,6 +40,7 @@ export default function DashboardPage() {
   const [complianceScores, setComplianceScores] = useState<ComplianceScore[]>([]);
   const [accreditations, setAccreditations] = useState<Accreditation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [adminConfigOpen, setAdminConfigOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboard()
@@ -67,12 +70,21 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <AdminConfigModal open={adminConfigOpen} onOpenChange={setAdminConfigOpen} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500">AI-powered accreditation readiness overview</p>
         </div>
         <div className="flex gap-3">
+          <Button
+            variant="outline"
+            className="gap-2 border-[#1a5276] text-[#1a5276] hover:bg-[#1a5276]/5"
+            onClick={() => setAdminConfigOpen(true)}
+          >
+            <Settings className="h-4 w-4" />
+            Admin configuration
+          </Button>
           <Link href="/accreditations">
             <Button variant="outline" className="gap-2 border-[#1a5276] text-[#1a5276] hover:bg-[#1a5276]/5">
               <ShieldCheck className="h-4 w-4" />
