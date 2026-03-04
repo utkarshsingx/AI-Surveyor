@@ -3,6 +3,42 @@ import type { PolicyComplianceReport } from "@/lib/ai";
 const reports: PolicyComplianceReport[] = [];
 const pendingDocumentKeys: { key: string; documentName: string; uploadedAt: string }[] = [];
 
+// Library of documents uploaded via Admin config for use in AI assessment
+export interface LibraryDocument {
+  id: string;
+  key: string; // relative path under public, e.g. "uploads/self-assessment/uuid.pdf"
+  documentName: string;
+  uploadedAt: string;
+}
+const libraryDocuments: LibraryDocument[] = [];
+
+export function addLibraryDocument(id: string, key: string, documentName: string): void {
+  libraryDocuments.push({
+    id,
+    key: key.startsWith("/") ? key.slice(1) : key,
+    documentName,
+    uploadedAt: new Date().toISOString(),
+  });
+}
+
+export function listLibraryDocuments(): LibraryDocument[] {
+  return [...libraryDocuments];
+}
+
+export function getLibraryDocument(id: string): LibraryDocument | undefined {
+  return libraryDocuments.find((d) => d.id === id);
+}
+
+export function getLibraryDocumentByKey(key: string): LibraryDocument | undefined {
+  const normalized = key.startsWith("/") ? key.slice(1) : key;
+  return libraryDocuments.find((d) => d.key === normalized || d.key === key);
+}
+
+export function removeLibraryDocument(id: string): void {
+  const i = libraryDocuments.findIndex((d) => d.id === id);
+  if (i >= 0) libraryDocuments.splice(i, 1);
+}
+
 export function addReport(report: PolicyComplianceReport): void {
   reports.unshift(report);
 }
